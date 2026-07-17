@@ -1,0 +1,49 @@
+# Local/linked CLI configuration. This file contains no remote credentials.
+project_id = "sacred-circle"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.migrations]
+enabled = true
+schema_paths = []
+
+[db.seed]
+# Production seed execution is always an explicit deployment decision.
+enabled = false
+sql_paths = ["./seed.sql"]
+
+[auth]
+enabled = true
+site_url = "http://localhost:8082"
+additional_redirect_urls = ["http://localhost:8082", "http://127.0.0.1:8082", "http://127.0.0.1:3000", "sacredcircle://auth/callback"]
+jwt_expiry = 3600
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[edge_runtime]
+enabled = true
+policy = "per_worker"
+inspector_port = 8083
+
+[functions.get-resource-url]
+verify_jwt = false
+
+[functions.create-upload-url]
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true

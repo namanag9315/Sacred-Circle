@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "Sacred Circle",
+    "slug": "sacred-circle",
+    "owner": "sacredcircle",
+    "scheme": "sacredcircle",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./src/assets/branding/app-icon.png",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "icon": "./src/assets/branding/app-icon.png",
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sacredcircle.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.sacredcircle.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/branding/app-icon-foreground.png",
+        "backgroundColor": "#FFF9F0"
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
+    },
+    "web": {
+      "favicon": "./src/assets/branding/app-icon.png"
+    },
+    "plugins": [
+      "expo-notifications",
+      "expo-audio",
+      "expo-web-browser",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./src/assets/starter/sacred-flame-logo.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFDF8"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ae116c31-5fbe-4a1a-b578-d042e846b116"
+      }
+    }
+  }
+}

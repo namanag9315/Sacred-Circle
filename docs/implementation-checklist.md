@@ -1,0 +1,33 @@
+# Implementation Checklist
+
+- [x] Simplified architecture plan
+- [x] Four-tab mobile navigation
+- [x] Light premium mobile UI system
+- [x] Email OTP/magic-link auth flow
+- [x] Session-specific Sacred Access Key model
+- [x] Supabase schema
+- [x] Supabase RLS policies
+- [x] Seed data for website content inventory
+- [x] Shared types and access helpers
+- [x] Home tab
+- [x] Sessions tab
+- [x] Meditations tab
+- [x] More tab
+- [x] Audio player screen
+- [x] Admin seven-section navigation
+- [x] Admin grouped Sessions/Sacred Access Keys
+- [x] Admin grouped Pages/Programs/Events/Videos
+- [x] Cloudflare R2 signed URL Edge Function
+- [x] Admin-only R2 signed upload Edge Function
+- [x] Contact submissions table and app contact form
+- [x] CSV templates and content import script
+- [x] Setup, deployment, and testing docs
+- [ ] Connect real Supabase project credentials
+- [x] Deploy `get-resource-url` Edge Function
+- [x] Deploy `create-upload-url` Edge Function
+- [ ] Deploy `delete-account` Edge Function
+- [ ] Configure Cloudflare R2 credentials and bucket
+- [x] Remove demo media URLs and demo access keys from runtime and production seeds
+- [ ] Upload and publish final Sacred Circle audio files
+- [ ] Review and apply the ordered production migrations
+- [ ] Manually review and finalize content inventory from sacredcirclegroup.com

@@ -1,0 +1,27 @@
+{
+  "name": "sacred-circle-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Sacred Circle premium spiritual community mobile app and admin panel.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:mobile": "npm --workspace apps/mobile run start",
+    "dev:admin": "npm --workspace apps/admin run dev",
+    "import:content": "node tools/import-content.mjs content-migration/templates",
+    "import:session-audios": "node tools/import-session-audios.mjs",
+    "typecheck": "npm --workspaces --if-present run typecheck",
+    "lint": "npm --workspaces --if-present run lint"
+  },
+  "devDependencies": {
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native-reanimated": "4.3.1",
+    "react-native-safe-area-context": "5.7.0",
+    "react-native-svg": "15.15.4",
+    "react-native-worklets": "0.8.3",
+    "typescript": "~6.0.3"
+  }
+}

@@ -1,0 +1,2 @@
+title,description,type,category,access_type,storage_provider,storage_path,youtube_url,external_url,session_id,duration_seconds,is_featured,display_order,status,source_url,migration_status
+Basic Morning Meditation,"Replace this with manually reviewed audio metadata.",audio,Basic Meditation,public,r2,public/audios/basic-meditation/basic-morning-meditation.mp3,,,,900,true,1,published,https://sacredcirclegroup.com/audio-library,manual_review
