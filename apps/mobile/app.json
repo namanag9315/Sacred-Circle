@@ -44,7 +44,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./src/assets/starter/sacred-flame-logo.png",
+          "image": "./src/assets/starter/sacred-flame-logo-optimized.png",
           "imageWidth": 220,
           "resizeMode": "contain",
           "backgroundColor": "#FFFDF8"

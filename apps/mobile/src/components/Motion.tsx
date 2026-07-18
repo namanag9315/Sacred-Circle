@@ -1,4 +1,4 @@
-import { AccessibilityInfo, Image, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { AccessibilityInfo, Image, Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { MotiText, MotiView } from "moti";
 import type { ReactNode } from "react";
@@ -13,7 +13,7 @@ import Animated, {
   withTiming
 } from "react-native-reanimated";
 import { colors } from "../theme";
-import sacredFlameLogo from "../assets/starter/sacred-flame-logo.png";
+import sacredFlameLogo from "../assets/starter/sacred-flame-logo-optimized.png";
 import { FlameFlicker } from "./starter/FlameFlicker";
 
 const AnimatedPressableBase = Animated.createAnimatedComponent(Pressable);
@@ -48,14 +48,15 @@ export function FadeUp({
   fromY?: number;
 }) {
   const reducedMotion = useReducedMotionFlag();
+  const web = Platform.OS === "web";
   return (
     <MotiView
-      from={{ opacity: 0, translateY: reducedMotion ? 0 : fromY }}
+      from={{ opacity: 0, translateY: reducedMotion ? 0 : web ? Math.min(fromY, 7) : fromY }}
       animate={{ opacity: 1, translateY: 0 }}
       transition={{
         type: "timing",
-        duration: reducedMotion ? 220 : 560,
-        delay: reducedMotion ? 0 : delay,
+        duration: reducedMotion ? 140 : web ? 240 : 400,
+        delay: reducedMotion ? 0 : Math.min(delay, web ? 70 : 160),
         easing: Easing.out(Easing.cubic)
       }}
       style={style}
@@ -75,11 +76,16 @@ export function FadeInText({
   style?: any;
 }) {
   const reducedMotion = useReducedMotionFlag();
+  const web = Platform.OS === "web";
   return (
     <MotiText
-      from={{ opacity: 0, translateY: reducedMotion ? 0 : 8 }}
+      from={{ opacity: 0, translateY: reducedMotion ? 0 : web ? 5 : 8 }}
       animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: "timing", duration: reducedMotion ? 200 : 460, delay: reducedMotion ? 0 : delay }}
+      transition={{
+        type: "timing",
+        duration: reducedMotion ? 140 : web ? 220 : 360,
+        delay: reducedMotion ? 0 : Math.min(delay, web ? 60 : 140)
+      }}
       style={style}
     >
       {children}
@@ -125,10 +131,11 @@ export function AnimatedPressable({
 
 export function BreathingLogoGlow({ size }: { size: number }) {
   const reducedMotion = useReducedMotionFlag();
+  const staticMotion = reducedMotion || Platform.OS === "web";
   const breath = useSharedValue(0);
 
   useEffect(() => {
-    if (reducedMotion) return;
+    if (staticMotion) return;
     breath.value = withRepeat(
       withSequence(
         withTiming(1, { duration: 1400, easing: Easing.inOut(Easing.sin) }),
@@ -137,11 +144,11 @@ export function BreathingLogoGlow({ size }: { size: number }) {
       -1,
       false
     );
-  }, [breath, reducedMotion]);
+  }, [breath, staticMotion]);
 
   const glowStyle = useAnimatedStyle(() => ({
-    opacity: reducedMotion ? 0.1 : 0.08 + breath.value * 0.16,
-    transform: [{ scale: reducedMotion ? 1 : 0.9 + breath.value * 0.18 }]
+    opacity: staticMotion ? 0.1 : 0.08 + breath.value * 0.16,
+    transform: [{ scale: staticMotion ? 1 : 0.9 + breath.value * 0.18 }]
   }));
 
   return (
@@ -171,12 +178,13 @@ export function PremiumMotionMedallion({
   style?: StyleProp<ViewStyle>;
 }) {
   const reducedMotion = useReducedMotionFlag();
+  const staticMotion = reducedMotion || Platform.OS === "web";
   const tilt = useSharedValue(0);
   const float = useSharedValue(0);
   const sweep = useSharedValue(0);
 
   useEffect(() => {
-    if (reducedMotion) return;
+    if (staticMotion) return;
     tilt.value = withRepeat(
       withSequence(
         withTiming(1, { duration: 2400, easing: Easing.inOut(Easing.sin) }),
@@ -194,27 +202,27 @@ export function PremiumMotionMedallion({
       false
     );
     sweep.value = withRepeat(withTiming(1, { duration: 3200, easing: Easing.inOut(Easing.cubic) }), -1, false);
-  }, [float, reducedMotion, sweep, tilt]);
+  }, [float, staticMotion, sweep, tilt]);
 
   const medallionStyle = useAnimatedStyle(() => ({
     transform: [
       { perspective: 720 },
-      { translateY: reducedMotion ? 0 : -3 + float.value * 6 },
-      { rotateY: `${reducedMotion ? -8 : -14 + tilt.value * 28}deg` },
-      { rotateX: `${reducedMotion ? 5 : 8 - tilt.value * 12}deg` },
-      { scale: reducedMotion ? 1 : 0.98 + float.value * 0.025 }
+      { translateY: staticMotion ? 0 : -3 + float.value * 6 },
+      { rotateY: `${staticMotion ? -8 : -14 + tilt.value * 28}deg` },
+      { rotateX: `${staticMotion ? 5 : 8 - tilt.value * 12}deg` },
+      { scale: staticMotion ? 1 : 0.98 + float.value * 0.025 }
     ]
   }));
 
   const orbitStyle = useAnimatedStyle(() => ({
-    opacity: reducedMotion ? 0.52 : 0.48 + float.value * 0.2,
-    transform: [{ rotate: `${reducedMotion ? -12 : tilt.value * 26 - 13}deg` }]
+    opacity: staticMotion ? 0.52 : 0.48 + float.value * 0.2,
+    transform: [{ rotate: `${staticMotion ? -12 : tilt.value * 26 - 13}deg` }]
   }));
 
   const shineStyle = useAnimatedStyle(() => ({
-    opacity: reducedMotion ? 0.16 : 0.12 + sweep.value * 0.24,
+    opacity: staticMotion ? 0.16 : 0.12 + sweep.value * 0.24,
     transform: [
-      { translateX: reducedMotion ? 0 : -size * 0.62 + sweep.value * size * 1.24 },
+      { translateX: staticMotion ? 0 : -size * 0.62 + sweep.value * size * 1.24 },
       { rotate: "-18deg" }
     ]
   }));
@@ -289,11 +297,12 @@ export function PremiumOrbitRings({
   style?: StyleProp<ViewStyle>;
 }) {
   const reducedMotion = useReducedMotionFlag();
+  const staticMotion = reducedMotion || Platform.OS === "web";
   const orbit = useSharedValue(0);
   const pulse = useSharedValue(0);
 
   useEffect(() => {
-    if (reducedMotion) return;
+    if (staticMotion) return;
     orbit.value = withRepeat(withTiming(1, { duration: 6200, easing: Easing.linear }), -1, false);
     pulse.value = withRepeat(
       withSequence(
@@ -303,16 +312,16 @@ export function PremiumOrbitRings({
       -1,
       false
     );
-  }, [orbit, pulse, reducedMotion]);
+  }, [orbit, pulse, staticMotion]);
 
   const spinStyle = useAnimatedStyle(() => ({
-    opacity: reducedMotion ? 0.52 : 0.58 + pulse.value * 0.22,
-    transform: [{ rotate: `${reducedMotion ? 0 : orbit.value * 360}deg` }]
+    opacity: staticMotion ? 0.52 : 0.58 + pulse.value * 0.22,
+    transform: [{ rotate: `${staticMotion ? 0 : orbit.value * 360}deg` }]
   }));
 
   const counterSpinStyle = useAnimatedStyle(() => ({
-    opacity: reducedMotion ? 0.32 : 0.34 + pulse.value * 0.18,
-    transform: [{ rotate: `${reducedMotion ? -36 : -orbit.value * 260 - 36}deg` }]
+    opacity: staticMotion ? 0.32 : 0.34 + pulse.value * 0.18,
+    transform: [{ rotate: `${staticMotion ? -36 : -orbit.value * 260 - 36}deg` }]
   }));
 
   return (
@@ -365,7 +374,7 @@ export const FloatingDust = memo(function FloatingDust() {
     []
   );
 
-  if (reducedMotion) return null;
+  if (reducedMotion || Platform.OS === "web") return null;
 
   return (
     <>
@@ -503,8 +512,9 @@ export function ActiveTabMotion({ focused, children }: { focused: boolean; child
   const opacity = useSharedValue(focused ? 1 : 0);
 
   useEffect(() => {
-    translate.value = withTiming(focused ? -3 : 0, { duration: 220, easing: Easing.out(Easing.cubic) });
-    opacity.value = withTiming(focused ? 1 : 0, { duration: 220 });
+    const duration = Platform.OS === "web" ? 120 : 200;
+    translate.value = withTiming(focused ? -3 : 0, { duration, easing: Easing.out(Easing.cubic) });
+    opacity.value = withTiming(focused ? 1 : 0, { duration });
   }, [focused, opacity, translate]);
 
   const iconStyle = useAnimatedStyle(() => ({

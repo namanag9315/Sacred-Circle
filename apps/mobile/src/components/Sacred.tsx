@@ -68,13 +68,13 @@ export function Screen({
     entrance.setValue(0);
     Animated.timing(entrance, {
       toValue: 1,
-      duration: 560,
+      duration: Platform.OS === "web" ? 210 : 340,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: Platform.OS !== "web"
     }).start();
   }, [entrance]);
 
-  const translateY = entrance.interpolate({ inputRange: [0, 1], outputRange: [14, 0] });
+  const translateY = entrance.interpolate({ inputRange: [0, 1], outputRange: [Platform.OS === "web" ? 6 : 10, 0] });
   const content = (
     <Animated.View style={[styles.content, centered && styles.centeredContent, contentStyle, { opacity: entrance, transform: [{ translateY }] }]}>
       {children}
@@ -84,7 +84,7 @@ export function Screen({
   return (
     <View style={styles.screen}>
       <FloatingDust />
-      <SubtleMandalaWatermark animated size={240} top={-60} right={-90} opacity={0.16} />
+      <SubtleMandalaWatermark animated={Platform.OS !== "web"} size={240} top={-60} right={-90} opacity={0.16} />
       <SubtleMandalaWatermark size={250} bottom={-80} left={-100} opacity={0.10} />
       {bottomImage ? <ImageBackground source={bottomImage} resizeMode="cover" style={styles.bottomLake} imageStyle={styles.bottomLakeImage} /> : null}
       {scroll ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>{content}</ScrollView> : content}

@@ -14,9 +14,9 @@ import {
 import { FadeUp } from "../components/Motion";
 import { useAuth } from "../context/AuthContext";
 import { colors } from "../theme";
-import sanctuaryArch from "../assets/reference/sanctuary-arch.png";
-import templeLake from "../assets/reference/temple-lake-sunrise.png";
-import sacredLogo from "../assets/starter/sacred-flame-logo.png";
+import sanctuaryArch from "../assets/reference/sanctuary-arch-optimized.jpg";
+import templeLake from "../assets/reference/temple-lake-sunrise-optimized.jpg";
+import sacredLogo from "../assets/starter/sacred-flame-logo-optimized.png";
 
 const disclaimer = "Sacred Circle is a wellness and meditation app.\nIt does not replace professional medical advice or treatment.";
 

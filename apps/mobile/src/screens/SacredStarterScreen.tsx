@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AccessibilityInfo, Image, StyleSheet, View, useWindowDimensions } from "react-native";
+import { AccessibilityInfo, Image, Platform, StyleSheet, View, useWindowDimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   Easing,
@@ -12,7 +12,7 @@ import Animated, {
 import { AnimatedJaiGurudevText } from "../components/starter/AnimatedJaiGurudevText";
 import { AnimatedSacredLogo } from "../components/starter/AnimatedSacredLogo";
 import { FloatingParticles } from "../components/starter/FloatingParticles";
-import starterWaterTemple from "../assets/starter/starter-water-temple.png";
+import starterWaterTemple from "../assets/starter/starter-water-temple-optimized.jpg";
 
 export function SacredStarterScreen({
   onFinish,
@@ -32,16 +32,17 @@ export function SacredStarterScreen({
   const glowSize = Math.min(410, visualWidth * 0.72);
   const lakeHeight = Math.max(wideScreen ? 430 : 440, height * (wideScreen ? 0.64 : 0.58));
   const compactHeight = height < 760;
+  const lightweightMotion = Platform.OS === "web";
 
   useEffect(() => {
     screenOpacity.value = shouldReduceMotion
-      ? withSequence(withTiming(1, { duration: 0 }), withDelay(1400, withTiming(0, { duration: 180 })))
+      ? withSequence(withTiming(1, { duration: 0 }), withDelay(1050, withTiming(0, { duration: 150 })))
       : withSequence(
           withTiming(1, { duration: 0 }),
-          withDelay(3400, withTiming(0, { duration: 220, easing: Easing.inOut(Easing.cubic) }))
+          withDelay(2050, withTiming(0, { duration: 180, easing: Easing.inOut(Easing.cubic) }))
         );
 
-    const timer = setTimeout(onFinish, shouldReduceMotion ? 1600 : 3650);
+    const timer = setTimeout(onFinish, shouldReduceMotion ? 1220 : 2260);
     return () => clearTimeout(timer);
   }, [onFinish, screenOpacity, shouldReduceMotion]);
 
@@ -75,7 +76,7 @@ export function SacredStarterScreen({
         style={styles.backgroundVeil}
       />
       <View pointerEvents="none" style={[styles.sunGlow, { width: glowSize, height: glowSize, borderRadius: glowSize / 2 }]} />
-      <FloatingParticles reducedMotion={shouldReduceMotion} />
+      <FloatingParticles reducedMotion={shouldReduceMotion} lite={lightweightMotion} />
 
       <View style={[styles.content, wideScreen && styles.contentWide, compactHeight && styles.contentCompact]}>
         <View style={[styles.logoZone, compactHeight && styles.logoZoneCompact]}>

@@ -24,9 +24,11 @@ type Particle = {
 };
 
 export const FloatingParticles = memo(function FloatingParticles({
-  reducedMotion = false
+  reducedMotion = false,
+  lite = false
 }: {
   reducedMotion?: boolean;
+  lite?: boolean;
 }) {
   const particles = useMemo<Particle[]>(
     () => [
@@ -50,10 +52,13 @@ export const FloatingParticles = memo(function FloatingParticles({
   );
 
   if (reducedMotion) return null;
+  const visibleParticles = lite
+    ? particles.filter((_, index) => [0, 1, 3, 8, 9, 11].includes(index))
+    : particles;
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {particles.map((particle, index) => (
+      {visibleParticles.map((particle, index) => (
         <FloatingParticle key={`${particle.kind}-${index}`} particle={particle} index={index} />
       ))}
     </View>

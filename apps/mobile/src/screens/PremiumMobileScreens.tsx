@@ -11,6 +11,7 @@ import {
 } from "@sacred-circle/lib";
 import * as Linking from "expo-linking";
 import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
   Alert,
@@ -73,58 +74,109 @@ import {
 } from "../services/repository";
 import { colors, shadows } from "../theme";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import sunriseLotus from "../assets/reference/sunrise-lotus.png";
-import templeLake from "../assets/reference/temple-lake-sunrise.png";
-import omMandala from "../assets/reference/om-mandala-gold.png";
-import starterWaterTemple from "../assets/starter/starter-water-temple.png";
+import sunriseLotus from "../assets/reference/sunrise-lotus-optimized.jpg";
+import templeLake from "../assets/reference/temple-lake-sunrise-optimized.jpg";
+import omMandala from "../assets/reference/om-mandala-gold-optimized.jpg";
+import starterWaterTemple from "../assets/starter/starter-water-temple-optimized.jpg";
 import sacredMandalaAlpha from "../assets/starter/sacred-mandala-alpha.png";
-import sacredFlameLogo from "../assets/starter/sacred-flame-logo.png";
+import sacredFlameLogo from "../assets/starter/sacred-flame-logo-optimized.png";
+
+type PremiumDataSnapshot = {
+  sessions: Session[];
+  resources: Resource[];
+  events: SacredEvent[];
+  videos: SacredVideo[];
+  announcements: Announcement[];
+  settings: Record<string, string>;
+};
+
+const PREMIUM_DATA_CACHE_MS = 30_000;
+let premiumDataCache: { value: PremiumDataSnapshot; loadedAt: number } | null = null;
+let premiumDataRequest: Promise<PremiumDataSnapshot> | null = null;
+
+async function loadPremiumData(force = false) {
+  const cacheFresh = premiumDataCache && Date.now() - premiumDataCache.loadedAt < PREMIUM_DATA_CACHE_MS;
+  if (!force && cacheFresh) return premiumDataCache!.value;
+  if (premiumDataRequest) return premiumDataRequest;
+
+  premiumDataRequest = Promise.all([
+    listSessions(),
+    listResources(),
+    listEvents(),
+    listVideos(),
+    listAnnouncements(),
+    listSettings()
+  ]).then(([sessions, resources, events, videos, announcements, settings]) => {
+    const value: PremiumDataSnapshot = {
+      sessions,
+      resources,
+      events,
+      videos,
+      announcements,
+      settings: Object.fromEntries(settings.map((setting) => [setting.key, setting.value]))
+    };
+    premiumDataCache = { value, loadedAt: Date.now() };
+    return value;
+  }).finally(() => {
+    premiumDataRequest = null;
+  });
+
+  return premiumDataRequest;
+}
 
 function usePremiumData() {
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [resources, setResources] = useState<Resource[]>([]);
-  const [events, setEvents] = useState<SacredEvent[]>([]);
-  const [videos, setVideos] = useState<SacredVideo[]>([]);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [settings, setSettings] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
+  const cached = premiumDataCache?.value;
+  const [sessions, setSessions] = useState<Session[]>(cached?.sessions || []);
+  const [resources, setResources] = useState<Resource[]>(cached?.resources || []);
+  const [events, setEvents] = useState<SacredEvent[]>(cached?.events || []);
+  const [videos, setVideos] = useState<SacredVideo[]>(cached?.videos || []);
+  const [announcements, setAnnouncements] = useState<Announcement[]>(cached?.announcements || []);
+  const [settings, setSettings] = useState<Record<string, string>>(cached?.settings || {});
+  const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState("");
 
-  const reload = useCallback(async () => {
-    setLoading(true);
+  const applySnapshot = useCallback((snapshot: PremiumDataSnapshot) => {
+    setSessions(snapshot.sessions);
+    setResources(snapshot.resources);
+    setEvents(snapshot.events);
+    setVideos(snapshot.videos);
+    setAnnouncements(snapshot.announcements);
+    setSettings(snapshot.settings);
+  }, []);
+
+  const hydrate = useCallback(async (force = false) => {
+    const hasCachedData = Boolean(premiumDataCache);
+    if (!hasCachedData) setLoading(true);
     setError("");
     try {
-      const [nextSessions, nextResources, nextEvents, nextVideos, nextAnnouncements, nextSettings] = await Promise.all([
-        listSessions(),
-        listResources(),
-        listEvents(),
-        listVideos(),
-        listAnnouncements(),
-        listSettings()
-      ]);
-      setSessions(nextSessions);
-      setResources(nextResources);
-      setEvents(nextEvents);
-      setVideos(nextVideos);
-      setAnnouncements(nextAnnouncements);
-      setSettings(Object.fromEntries(nextSettings.map((setting) => [setting.key, setting.value])));
+      applySnapshot(await loadPremiumData(force));
     } catch (loadError) {
       console.warn("Unable to load Sacred Circle content", loadError);
-      setSessions([]);
-      setResources([]);
-      setEvents([]);
-      setVideos([]);
-      setAnnouncements([]);
-      setSettings({});
-      setError("We could not load the latest Sacred Circle content.");
+      if (!premiumDataCache) {
+        setSessions([]);
+        setResources([]);
+        setEvents([]);
+        setVideos([]);
+        setAnnouncements([]);
+        setSettings({});
+        setError("We could not load the latest Sacred Circle content.");
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [applySnapshot]);
+
+  const reload = useCallback(() => hydrate(true), [hydrate]);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    void hydrate(false);
+  }, [hydrate]);
+
+  useFocusEffect(useCallback(() => {
+    if (!premiumDataCache || Date.now() - premiumDataCache.loadedAt >= PREMIUM_DATA_CACHE_MS) {
+      void hydrate(false);
+    }
+  }, [hydrate]));
 
   return { sessions, resources, events, videos, announcements, settings, loading, error, reload };
 }

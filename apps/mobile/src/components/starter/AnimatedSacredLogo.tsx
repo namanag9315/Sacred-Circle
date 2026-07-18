@@ -9,7 +9,7 @@ import Animated, {
   withSequence,
   withTiming
 } from "react-native-reanimated";
-import sacredFlameLogo from "../../assets/starter/sacred-flame-logo.png";
+import sacredFlameLogo from "../../assets/starter/sacred-flame-logo-optimized.png";
 import { FlameFlicker } from "./FlameFlicker";
 import { RotatingSacredCircle } from "./RotatingSacredCircle";
 
@@ -27,13 +27,13 @@ export function AnimatedSacredLogo({
 
   useEffect(() => {
     entrance.value = withDelay(
-      reducedMotion ? 0 : 600,
-      withTiming(1, { duration: reducedMotion ? 280 : 620, easing: Easing.out(Easing.cubic) })
+      reducedMotion ? 0 : 260,
+      withTiming(1, { duration: reducedMotion ? 220 : 440, easing: Easing.out(Easing.cubic) })
     );
 
     if (reducedMotion) return;
     aura.value = withDelay(
-      1000,
+      620,
       withRepeat(
         withSequence(
           withTiming(1, { duration: 1400, easing: Easing.inOut(Easing.sin) }),

@@ -24,8 +24,8 @@ export function RotatingSacredCircle({
 
   useEffect(() => {
     entrance.value = withDelay(
-      reducedMotion ? 0 : 300,
-      withTiming(1, { duration: reducedMotion ? 280 : 760, easing: Easing.out(Easing.cubic) })
+      reducedMotion ? 0 : 120,
+      withTiming(1, { duration: reducedMotion ? 220 : 480, easing: Easing.out(Easing.cubic) })
     );
 
     if (reducedMotion) return;
@@ -35,7 +35,7 @@ export function RotatingSacredCircle({
       false
     );
     breath.value = withDelay(
-      300,
+      180,
       withRepeat(
         withSequence(
           withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.sin) }),

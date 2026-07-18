@@ -17,7 +17,7 @@ const mobileDir = join(repoRoot, "apps", "mobile");
 const distDir = join(mobileDir, "dist");
 const publicDir = join(mobileDir, "public");
 const starterAsset = join(mobileDir, "src", "assets", "starter", "starter-background.png");
-const flameAsset = join(mobileDir, "src", "assets", "starter", "sacred-flame-logo.png");
+const flameAsset = join(mobileDir, "src", "assets", "starter", "sacred-flame-logo-optimized.png");
 const indexPath = join(distDir, "index.html");
 
 const requiredFiles = [indexPath, starterAsset, flameAsset];
@@ -296,6 +296,7 @@ function collectPrecacheFiles(rootDir) {
       }
       const relativePath = relative(rootDir, absolute).split(sep).join("/");
       if (ignored.has(relativePath) || relativePath.endsWith(".map")) continue;
+      if (!isAppShellFile(relativePath)) continue;
       const content = readFileSync(absolute);
       files.push({
         url: `/${relativePath}`,
@@ -306,6 +307,16 @@ function collectPrecacheFiles(rootDir) {
 
   walk(rootDir);
   return files.sort((a, b) => a.url.localeCompare(b.url));
+}
+
+function isAppShellFile(path) {
+  return (
+    ["index.html", "manifest.json", "favicon.ico"].includes(path) ||
+    path.startsWith("_expo/static/js/") ||
+    path.startsWith("icons/") ||
+    path.includes("/assets/fonts/") ||
+    path.includes("/assets/starter/")
+  );
 }
 
 function createServiceWorker(version, urls) {

@@ -50,8 +50,9 @@ const theme = {
 function Tabs() {
   return (
     <Tab.Navigator
+      detachInactiveScreens
       tabBar={(props) => <PremiumBottomTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
+      screenOptions={{ headerShown: false, lazy: true, freezeOnBlur: true }}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Audio" component={MeditationsScreen} />
@@ -221,7 +222,7 @@ export function AppNavigator() {
   const previewOnboarding = previewMode === "onboarding";
 
   useEffect(() => {
-    const timer = setTimeout(() => setSplashDone(true), Platform.OS === "web" ? 50 : 900);
+    const timer = setTimeout(() => setSplashDone(true), Platform.OS === "web" ? 30 : 320);
     return () => clearTimeout(timer);
   }, []);
 

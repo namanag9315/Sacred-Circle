@@ -27,24 +27,24 @@ export function AnimatedJaiGurudevText({
 
   useEffect(() => {
     dividerProgress.value = withDelay(
-      reducedMotion ? 0 : 1200,
-      withTiming(1, { duration: reducedMotion ? 220 : 300, easing: Easing.out(Easing.cubic) })
+      reducedMotion ? 0 : 620,
+      withTiming(1, { duration: reducedMotion ? 180 : 240, easing: Easing.out(Easing.cubic) })
     );
     titleProgress.value = withDelay(
-      reducedMotion ? 120 : 1400,
-      withTiming(1, { duration: reducedMotion ? 260 : 820, easing: Easing.out(Easing.cubic) })
+      reducedMotion ? 80 : 760,
+      withTiming(1, { duration: reducedMotion ? 220 : 520, easing: Easing.out(Easing.cubic) })
     );
     bottomDividerProgress.value = withDelay(
-      reducedMotion ? 180 : 1600,
-      withTiming(1, { duration: reducedMotion ? 220 : 300, easing: Easing.out(Easing.cubic) })
+      reducedMotion ? 140 : 900,
+      withTiming(1, { duration: reducedMotion ? 180 : 240, easing: Easing.out(Easing.cubic) })
     );
     subtitleProgress.value = withDelay(
-      reducedMotion ? 240 : 1800,
-      withTiming(1, { duration: reducedMotion ? 240 : 650, easing: Easing.out(Easing.cubic) })
+      reducedMotion ? 190 : 1080,
+      withTiming(1, { duration: reducedMotion ? 200 : 400, easing: Easing.out(Easing.cubic) })
     );
     dotPulse.value = withDelay(
-      reducedMotion ? 320 : 2100,
-      withTiming(1, { duration: reducedMotion ? 220 : 900, easing: Easing.inOut(Easing.sin) })
+      reducedMotion ? 250 : 1320,
+      withTiming(1, { duration: reducedMotion ? 180 : 420, easing: Easing.inOut(Easing.sin) })
     );
   }, [dividerProgress, bottomDividerProgress, dotPulse, reducedMotion, subtitleProgress, titleProgress]);
 
