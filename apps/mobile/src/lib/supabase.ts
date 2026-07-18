@@ -10,12 +10,15 @@ function runtimeValue(extraValue: unknown, envValue?: string) {
 }
 
 const supabaseUrl = runtimeValue(extra.supabaseUrl, process.env.EXPO_PUBLIC_SUPABASE_URL);
-const supabaseAnonKey = runtimeValue(extra.supabaseAnonKey, process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY);
+const supabaseClientKey = runtimeValue(
+  extra.supabasePublishableKey || extra.supabaseAnonKey,
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+);
 
-export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey && !String(supabaseUrl).includes("$"));
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseClientKey && !String(supabaseUrl).includes("$"));
 
 export const supabase = isSupabaseConfigured
-  ? createClient(String(supabaseUrl), String(supabaseAnonKey), {
+  ? createClient(String(supabaseUrl), String(supabaseClientKey), {
       auth: {
         storage: AsyncStorage,
         autoRefreshToken: true,
