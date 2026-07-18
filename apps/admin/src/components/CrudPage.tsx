@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getYouTubeThumbnailUrl } from "@sacred-circle/lib";
+import {
+  getYouTubeThumbnailUrl,
+  isValidSacredAccessKey,
+  normalizeSacredAccessKey,
+  SACRED_KEY_LENGTH
+} from "@sacred-circle/lib";
 import { CalendarPlus, Download, KeyRound, Music2, Plus, Search, ShieldCheck, Trash2, Upload, Video } from "lucide-react";
 import { FieldConfig, ModuleConfig } from "@/lib/adminConfig";
 import { supabase } from "@/lib/supabase";
@@ -150,6 +155,9 @@ export function CrudPage({ config, configs }: { config: ModuleConfig; configs?: 
         if (payload.audio_group === "free") payload.access_type = "public";
         if (["online_shivir", "offline_shivir"].includes(payload.audio_group)) payload.access_type = "session_protected";
         payload.category = payload.audio_group === "offline_shivir" ? "Offline Shivir" : payload.audio_group === "online_shivir" ? "Online Shivir" : "Free";
+      }
+      if (activeConfig.table === "session_access_codes" && (!payload.id || payload.__plain_code) && !isValidSacredAccessKey(String(payload.__plain_code || ""))) {
+        throw new Error("The Sacred Access Key must contain exactly 6 numbers.");
       }
 
       if (activeConfig.table === "videos" && payload.youtube_url) {
@@ -394,7 +402,7 @@ function ModuleGuide({
         <div className="workflow-step">
           <KeyRound size={20} />
           <strong>2. Add Sacred Access Key</strong>
-          <span>The key belongs to this session only. It unlocks only this Sunday recording.</span>
+          <span>The key authorizes this Sunday recording and must be entered for each new playback.</span>
         </div>
         <div className="workflow-step">
           <Music2 size={20} />
@@ -460,6 +468,9 @@ function renderField(field: FieldConfig, editing: any, setEditing: (next: any) =
         {relationOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
     );
+  }
+  if (field.key === "__plain_code") {
+    return <input className="input" type="text" inputMode="numeric" maxLength={SACRED_KEY_LENGTH} pattern="[0-9]{6}" value={value || ""} onChange={(event) => update(normalizeSacredAccessKey(event.target.value))} />;
   }
   return <input className="input" type={field.type === "number" ? "number" : field.type === "date" ? "date" : field.type === "datetime" ? "datetime-local" : "text"} value={formatInputValue(field, value)} onChange={(event) => update(event.target.value)} />;
 }

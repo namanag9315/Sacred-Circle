@@ -401,10 +401,9 @@ export function SacredAccessKeyCard({ onUnlock }: { onUnlock?: () => void }) {
         </View>
       </View>
       <View style={[styles.keyBoxes, compact && styles.keyBoxesCompact]}>
-        {[0, 1, 2, 3].map((item) => <View key={item} style={[styles.keyBox, compact && styles.keyBoxCompact]}><Text style={[styles.keyDot, compact && styles.keyDotCompact]}>•</Text></View>)}
-        {!compact ? <View style={[styles.keyBox, styles.keyBoxActive]}><KeyRound color={colors.gold} size={25} /></View> : null}
+        {Array.from({ length: 6 }, (_, item) => <View key={item} style={[styles.keyBox, compact && styles.keyBoxCompact, item === 5 && styles.keyBoxActive]}><Text style={[styles.keyDot, compact && styles.keyDotCompact]}>•</Text></View>)}
       </View>
-      <SecondaryButton gold label="Unlock Recording" icon={compact ? undefined : <LockKeyhole color="#FFFFFF" size={18} />} onPress={onUnlock} style={compact && styles.compactGoldButton} textStyle={compact && styles.compactGoldButtonText} />
+      <SecondaryButton gold label="Open Recording" icon={compact ? undefined : <LockKeyhole color="#FFFFFF" size={18} />} onPress={onUnlock} style={compact && styles.compactGoldButton} textStyle={compact && styles.compactGoldButtonText} />
       <View style={[styles.cardFooterRow, compact && styles.cardFooterRowHidden]}>
         <CalendarDays color={colors.goldSoft} size={15} />
         <Text style={styles.cardFooterText}>Key shared during the live Sunday session</Text>

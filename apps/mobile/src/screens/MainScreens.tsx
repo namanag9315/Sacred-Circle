@@ -1,7 +1,7 @@
 import {
   DISCLAIMER,
   HOME_SHORTCUTS,
-  canAccessResource,
+  SACRED_KEY_LENGTH,
   formatDuration,
   getRecordingState,
   type PageContent,
@@ -11,12 +11,13 @@ import {
   type Session,
   type Video
 } from "@sacred-circle/lib";
+import Slider from "@react-native-community/slider";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Linking from "expo-linking";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, ImageBackground, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Alert, ImageBackground, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import LottieView from "lottie-react-native";
 import Animated, {
   Easing,
@@ -31,7 +32,6 @@ import {
   Bell,
   BookOpen,
   CalendarDays,
-  CheckCircle2,
   ChevronRight,
   Headphones,
   Lock,
@@ -41,6 +41,8 @@ import {
   MessageCircle,
   Pause,
   Play,
+  RotateCcw,
+  RotateCw,
   Sparkles,
   Unlock,
   Video as VideoIcon
@@ -151,14 +153,14 @@ function openUrl(url?: string | null, message = "The Sacred Circle team has not 
 }
 
 export function HomeScreen({ navigation }: any) {
-  const { profile, userId, unlocks } = useAuth();
+  const { profile, userId } = useAuth();
   const { sessions, resources, settings } = useAppData();
   const { width } = useWindowDimensions();
   const isWide = width >= 860;
   const isPhone = width < 520;
   const nextSession = nextSessionOf(sessions);
   const lastPlayed = resources.find((resource) => resource.type === "audio" && resource.access_type === "public");
-  const lockedRecording = resources.find((resource) => resource.access_type === "session_protected" && !canAccessResource(resource, { sessionUnlocks: unlocks }));
+  const lockedRecording = resources.find((resource) => resource.access_type === "session_protected");
   const firstName = profile?.name && profile.name !== "Sacred Seeker" ? profile.name.split(/\s+/)[0]?.replace(/[^A-Za-z]/g, "") : "";
   const formattedName = firstName ? `${firstName.slice(0, 1).toUpperCase()}${firstName.slice(1).toLowerCase()}` : "";
   const displayName = formattedName && formattedName.length <= 10 ? formattedName : "Seeker";
@@ -202,7 +204,7 @@ export function HomeScreen({ navigation }: any) {
 
       <FadeUp delay={80}>
         <View style={local.homeIntro}>
-          <Text style={[local.homeGreeting, isPhone && local.homeGreetingPhone]}>Namaste, {displayName}</Text>
+          <Text style={[local.homeGreeting, isPhone && local.homeGreetingPhone]}>Namaste, {displayName} Ji</Text>
           <View style={local.homeRule} />
           <Text style={[local.homeSubtext, isPhone && local.homeSubtextPhone]}>Welcome to your sacred space of healing,{"\n"}meditation and inner awakening.</Text>
         </View>
@@ -258,7 +260,7 @@ export function HomeScreen({ navigation }: any) {
 }
 
 export function SessionsScreen({ navigation }: any) {
-  const { userId, unlocks } = useAuth();
+  const { userId } = useAuth();
   const { sessions, resources, settings } = useAppData();
   const upcoming = sessions.filter((session) => session.status === "upcoming" || session.status === "live");
   const past = sessions.filter((session) => session.status === "completed");
@@ -272,7 +274,7 @@ export function SessionsScreen({ navigation }: any) {
   return (
     <LightScreen>
       <LogoMark compact />
-      <AppHeader title="Sessions" subtitle="Join the Sunday Zoom session and unlock recordings after attending live." />
+      <AppHeader title="Sessions" subtitle="Join Sunday on Zoom, then use the six-digit key each time you play a protected recording." />
       <SectionTitle title="Upcoming Session" />
       {upcoming.length ? upcoming.map((session) => (
         <SessionSummaryCard
@@ -289,7 +291,7 @@ export function SessionsScreen({ navigation }: any) {
       <SectionTitle title="Past Sessions" />
       {past.map((session) => {
         const resource = protectedResourceFor(session, resources);
-        const state = getRecordingState(resource, { sessionUnlocks: unlocks });
+        const state = getRecordingState(resource);
         return (
           <PastSessionCard
             key={session.id}
@@ -305,7 +307,6 @@ export function SessionsScreen({ navigation }: any) {
 }
 
 export function MeditationsScreen({ navigation }: any) {
-  const { unlocks } = useAuth();
   const { resources } = useAppData();
   const freeResources = resources.filter((resource) => resource.type === "audio" && resource.access_type === "public");
   const protectedResources = resources.filter((resource) => resource.type === "audio" && resource.access_type === "session_protected");
@@ -331,17 +332,14 @@ export function MeditationsScreen({ navigation }: any) {
       {!freeResources.length ? <EmptyState title="No published audio yet" body="Reviewed Sacred Circle audio will appear here when it is available." /> : null}
 
       <SectionTitle title="Session Recordings" />
-      {protectedResources.map((resource) => {
-        const unlocked = canAccessResource(resource, { sessionUnlocks: unlocks });
-        return (
-          <AudioResourceCard
-            key={resource.id}
-            resource={resource}
-            unlocked={unlocked}
-            onPress={() => unlocked ? navigation.navigate("AudioPlayer", { resource }) : navigation.navigate("SessionDetail", { session: { id: resource.session_id, title: resource.title, description: resource.description, session_date: "", status: "completed" } })}
-          />
-        );
-      })}
+      {protectedResources.map((resource) => (
+        <AudioResourceCard
+          key={resource.id}
+          resource={resource}
+          unlocked={false}
+          onPress={() => navigation.navigate("SessionDetail", { session: { id: resource.session_id, title: resource.title, description: resource.description, session_date: "", status: "completed" } })}
+        />
+      ))}
       {!protectedResources.length ? <EmptyState title="No session recordings yet" body="Protected Sunday healing recordings will appear here after upload." /> : null}
     </LightScreen>
   );
@@ -357,7 +355,7 @@ export function MoreScreen({ navigation }: any) {
     ["About Sacred Circle", "Mission and mentor information", "About"],
     ["Contact", "Email, Sunday timing and WhatsApp", "Contact"],
     ["WhatsApp Group", "Open community link", "whatsapp"],
-    ["My Profile", "Name, email, phone and unlocked recordings", "Profile"],
+    ["My Profile", "Name, email, phone and protected-recording access", "Profile"],
     ["Help", "Simple app help and privacy note", "Help"]
   ] as const;
 
@@ -386,8 +384,7 @@ export function SessionDetailScreen({ route, navigation }: any) {
   const { sessions, resources } = useAppData();
   const session = sessions.find((item) => item.id === routeSession.id) || routeSession;
   const resource = resources.find((item) => item.access_type === "session_protected" && item.session_id === session.id);
-  const { unlocks, completeSacredKey, refreshUnlocks } = useAuth();
-  const unlocked = resource ? canAccessResource(resource, { sessionUnlocks: unlocks }) : false;
+  const { completeSacredKey } = useAuth();
 
   return (
     <LightScreen>
@@ -402,43 +399,43 @@ export function SessionDetailScreen({ route, navigation }: any) {
         </View>
       </PremiumCard>
       <PremiumCard>
-        <StatusBadge label="Protected Healing Recording" tone={resource ? unlocked ? "success" : "warning" : "danger"} />
+        <StatusBadge label="Protected Healing Recording" tone={resource ? "warning" : "danger"} />
         <Text style={local.cardTitle}>{resource?.title || "Recording not uploaded"}</Text>
-        <BodyText>{resource ? "This audio is reserved for participants of the live Sunday session." : "The recording has not been uploaded yet."}</BodyText>
-        {resource && unlocked ? (
-          <PrimaryButton label="Play Recording" icon={<Play color="#FFFFFF" size={18} />} onPress={() => navigation.navigate("AudioPlayer", { resource })} />
-        ) : resource ? (
-          <SacredKeyBlock sessionId={session.id} onSuccess={async () => refreshUnlocks()} completeSacredKey={completeSacredKey} />
+        <BodyText>{resource ? "Enter the six-digit key each time you open this protected recording." : "The recording has not been uploaded yet."}</BodyText>
+        {resource ? (
+          <SacredKeyBlock
+            sessionId={session.id}
+            onSuccess={async (accessCode) => navigation.navigate("AudioPlayer", { resource, accessCode })}
+            completeSacredKey={completeSacredKey}
+          />
         ) : null}
       </PremiumCard>
     </LightScreen>
   );
 }
 
-export function AudioPlayerScreen({ route, navigation }: any) {
+export function AudioPlayerScreen({ route }: any) {
   const resource = route.params.resource as Resource;
+  const accessCode = typeof route.params.accessCode === "string" ? route.params.accessCode : undefined;
   const player = useAudioPlayer(null, { updateInterval: 250 });
   const playback = useAudioPlayerStatus(player);
+  const { height, width } = useWindowDimensions();
   const [sourceReady, setSourceReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [scrubbing, setScrubbing] = useState(false);
+  const [scrubSeconds, setScrubSeconds] = useState(0);
   const playing = playback.playing;
-  const positionMillis = Math.max(0, playback.currentTime * 1000);
-  const durationMillis = Math.max(0, (playback.duration || resource.duration_seconds || 0) * 1000);
-  const progress = durationMillis > 0 ? Math.min(positionMillis / durationMillis, 1) : 0;
-  const progressValue = useSharedValue(0);
+  const compactPlayer = height < 760 || width < 380;
+  const positionSeconds = Math.max(0, playback.currentTime || 0);
+  const durationSeconds = Math.max(0, playback.duration || resource.duration_seconds || 0);
+  const displayedSeconds = Math.min(scrubbing ? scrubSeconds : positionSeconds, durationSeconds || 0);
+  const isWaiting = loading || (playback.isBuffering && !playing);
   const playPulse = useSharedValue(1);
 
   useEffect(() => {
     void recordRecentlyPlayedAudio(resource.id);
   }, [resource.id]);
-
-  useEffect(() => {
-    progressValue.value = withTiming(progress, {
-      duration: playing ? 420 : 180,
-      easing: Easing.out(Easing.cubic)
-    });
-  }, [playing, progress, progressValue]);
 
   useEffect(() => {
     if (playing) {
@@ -456,12 +453,17 @@ export function AudioPlayerScreen({ route, navigation }: any) {
     }
   }, [playPulse, playing]);
 
-  const progressStyle = useAnimatedStyle(() => ({
-    width: `${Math.max(progressValue.value * 100, 2)}%`
-  }));
   const playPulseStyle = useAnimatedStyle(() => ({
     transform: [{ scale: playPulse.value }]
   }));
+
+  useEffect(() => () => {
+    try {
+      player.clearLockScreenControls();
+    } catch {
+      // The player may already have been released during screen teardown.
+    }
+  }, [player]);
 
   useEffect(() => {
     if (playback.didJustFinish) setCompleted(true);
@@ -470,9 +472,22 @@ export function AudioPlayerScreen({ route, navigation }: any) {
   async function ensureSound() {
     if (sourceReady) return player;
     setLoading(true);
-    const url = await getPlayableResourceUrl(resource);
+    const url = await getPlayableResourceUrl(resource, accessCode);
     if (!url) throw new Error("Audio URL not available");
     player.replace({ uri: url });
+    player.setActiveForLockScreen(
+      true,
+      {
+        title: resource.title,
+        artist: "Sacred Circle",
+        albumTitle: resource.category
+      },
+      {
+        showSeekBackward: true,
+        showSeekForward: true,
+        isLiveStream: false
+      }
+    );
     setSourceReady(true);
     setLoading(false);
     return player;
@@ -501,8 +516,23 @@ export function AudioPlayerScreen({ route, navigation }: any) {
   async function seekBy(seconds: number) {
     try {
       const player = await ensureSound();
-      const nextPositionSeconds = Math.max(0, Math.min(playback.currentTime + seconds, playback.duration || playback.currentTime));
+      const knownDuration = playback.duration || resource.duration_seconds || 0;
+      const nextPositionSeconds = Math.max(0, Math.min(playback.currentTime + seconds, knownDuration));
       await player.seekTo(nextPositionSeconds);
+      setCompleted(false);
+    } catch {
+      Alert.alert("Audio unavailable", "Please check your internet connection or try again later.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function seekTo(seconds: number) {
+    setScrubbing(false);
+    try {
+      const player = await ensureSound();
+      await player.seekTo(Math.max(0, Math.min(seconds, durationSeconds)));
+      setCompleted(false);
     } catch {
       Alert.alert("Audio unavailable", "Please check your internet connection or try again later.");
     } finally {
@@ -512,26 +542,101 @@ export function AudioPlayerScreen({ route, navigation }: any) {
 
   return (
     <PlainScreen>
-      <View style={local.player}>
-        <Animated.View style={[local.playerCircle, playPulseStyle]}>
-          {playing ? <Pause color={colors.navy} size={48} /> : <Play color={colors.navy} fill={colors.navy} size={48} />}
+      <View style={[local.player, compactPlayer && local.playerCompact]}>
+        <View style={local.playerEyebrow}>
+          <Headphones color={colors.gold} size={15} />
+          <Text style={local.playerEyebrowText}>NOW PLAYING</Text>
+        </View>
+
+        <Animated.View style={[local.playerArtworkShell, compactPlayer && local.playerArtworkShellCompact, playPulseStyle]}>
+          <ImageBackground source={audioMeditation} resizeMode="cover" style={local.playerArtwork} imageStyle={local.playerArtworkImage}>
+            <LinearGradient colors={["rgba(17,29,58,0.03)", "rgba(17,29,58,0.48)"]} style={local.playerArtworkShade} />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={playing ? "Pause audio" : "Play audio"}
+              onPress={toggle}
+              disabled={loading}
+              style={({ pressed }) => [local.playerArtworkButton, pressed && local.playerControlPressed]}
+            >
+              {isWaiting ? (
+                <ActivityIndicator color="#FFFFFF" size="large" />
+              ) : playing ? (
+                <Pause color="#FFFFFF" fill="#FFFFFF" size={32} />
+              ) : (
+                <Play color="#FFFFFF" fill="#FFFFFF" size={32} />
+              )}
+            </Pressable>
+          </ImageBackground>
         </Animated.View>
-        <Text style={local.playerTitle}>{resource.title}</Text>
-        <Text style={local.playerCategory}>{resource.category}</Text>
-        <View style={local.playerProgressTrack}>
-          <Animated.View style={[local.playerProgressFill, progressStyle]} />
+
+        <View style={local.playerCopy}>
+          <Text numberOfLines={compactPlayer ? 2 : 3} adjustsFontSizeToFit minimumFontScale={0.78} style={[local.playerTitle, compactPlayer && local.playerTitleCompact]}>{resource.title}</Text>
+          <Text style={local.playerCategory}>{resource.category || "Sacred Audio"}</Text>
         </View>
-        <View style={local.playerTimes}>
-          <Text style={local.playerDuration}>{formatMillis(positionMillis)}</Text>
-          <Text style={local.playerDuration}>{formatMillis(durationMillis)}</Text>
+
+        <View style={local.playerTimeline}>
+          <Slider
+            accessibilityLabel="Audio position"
+            minimumValue={0}
+            maximumValue={Math.max(durationSeconds, 1)}
+            value={displayedSeconds}
+            step={1}
+            minimumTrackTintColor={colors.gold}
+            maximumTrackTintColor="rgba(17,29,58,0.14)"
+            thumbTintColor={colors.gold}
+            disabled={!durationSeconds || loading}
+            onSlidingStart={() => {
+              setScrubSeconds(positionSeconds);
+              setScrubbing(true);
+            }}
+            onValueChange={setScrubSeconds}
+            onSlidingComplete={(value) => void seekTo(value)}
+            style={local.playerSlider}
+          />
+          <View style={local.playerTimes}>
+            <Text style={local.playerDuration}>{formatMillis(displayedSeconds * 1000)}</Text>
+            <Text style={local.playerDuration}>{formatMillis(durationSeconds * 1000)}</Text>
+          </View>
         </View>
+
         {completed ? <StatusBadge label="Completed" tone="success" /> : null}
+
         <View style={local.playerControls}>
-          <SecondaryButton label="-15 sec" onPress={() => seekBy(-15)} disabled={loading} style={local.playerSmallButton} />
-          <PrimaryButton label={loading ? "Loading..." : playing ? "Pause" : "Play"} onPress={toggle} disabled={loading} style={local.playerMainButton} />
-          <SecondaryButton label="+15 sec" onPress={() => seekBy(15)} disabled={loading} style={local.playerSmallButton} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Rewind 15 seconds"
+            onPress={() => seekBy(-15)}
+            disabled={loading}
+            style={({ pressed }) => [local.playerSkipButton, pressed && local.playerControlPressed, loading && local.playerControlDisabled]}
+          >
+            <RotateCcw color={colors.navy} size={24} />
+            <Text style={local.playerSkipText}>15</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={playing ? "Pause audio" : "Play audio"}
+            onPress={toggle}
+            disabled={loading}
+            style={({ pressed }) => [local.playerPlayButton, pressed && local.playerControlPressed, loading && local.playerControlDisabled]}
+          >
+            {isWaiting ? <ActivityIndicator color="#FFFFFF" /> : playing ? <Pause color="#FFFFFF" fill="#FFFFFF" size={31} /> : <Play color="#FFFFFF" fill="#FFFFFF" size={31} />}
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Forward 15 seconds"
+            onPress={() => seekBy(15)}
+            disabled={loading}
+            style={({ pressed }) => [local.playerSkipButton, pressed && local.playerControlPressed, loading && local.playerControlDisabled]}
+          >
+            <RotateCw color={colors.navy} size={24} />
+            <Text style={local.playerSkipText}>15</Text>
+          </Pressable>
         </View>
-        <SecondaryButton label="Back" onPress={() => navigation.goBack()} disabled={loading} />
+
+        <View style={local.playerBackgroundNote}>
+          <Headphones color={colors.gold} size={15} />
+          <Text style={local.playerBackgroundNoteText}>Playback continues when your screen is locked</Text>
+        </View>
       </View>
     </PlainScreen>
   );
@@ -797,9 +902,7 @@ export function ContactScreen() {
 }
 
 export function ProfileScreen({ navigation }: any) {
-  const { profile, unlocks, signOut } = useAuth();
-  const { sessions } = useAppData();
-  const unlockedSessions = sessions.filter((session) => unlocks.some((unlock) => unlock.session_id === session.id));
+  const { profile, signOut } = useAuth();
 
   return (
     <LightScreen>
@@ -811,14 +914,7 @@ export function ProfileScreen({ navigation }: any) {
         <Info label="Phone" value={profile?.phone || "Optional"} />
         <Info label="City" value={profile?.city || "Optional"} />
       </PremiumCard>
-      <SectionTitle title="Unlocked Recordings" />
-      {unlockedSessions.map((session) => (
-        <PremiumCard key={session.id}>
-          <CheckCircle2 color={colors.success} size={22} />
-          <Text style={local.cardTitle}>{session.title}</Text>
-        </PremiumCard>
-      ))}
-      {!unlockedSessions.length ? <EmptyState title="No recordings unlocked yet" body="Attend a Sunday session and enter that session's Sacred Access Key." /> : null}
+      <EmptyState title="Protected recordings stay locked" body="Open a recording and enter its six-digit Sacred Access Key each time you want to listen." />
       <SecondaryButton label="Back to More" onPress={() => navigation.goBack()} />
       <SecondaryButton label="Logout" icon={<LogOut color={colors.navy} size={18} />} onPress={signOut} />
     </LightScreen>
@@ -839,7 +935,7 @@ export function HelpScreen() {
   );
 }
 
-function SacredKeyBlock({ sessionId, completeSacredKey, onSuccess }: { sessionId: string; completeSacredKey: (sessionId: string, code: string) => Promise<string>; onSuccess: () => Promise<void> }) {
+function SacredKeyBlock({ sessionId, completeSacredKey, onSuccess }: { sessionId: string; completeSacredKey: (sessionId: string, code: string) => Promise<string>; onSuccess: (accessCode: string) => Promise<void> }) {
   const inputRef = useRef<TextInput>(null);
   const [code, setCode] = useState("");
   const [focused, setFocused] = useState(false);
@@ -853,7 +949,7 @@ function SacredKeyBlock({ sessionId, completeSacredKey, onSuccess }: { sessionId
   }));
 
   function updateCode(next: string) {
-    setCode(next.replace(/[^a-zA-Z0-9]/g, "").slice(0, 4).toUpperCase());
+    setCode(next.replace(/\D/g, "").slice(0, SACRED_KEY_LENGTH));
     setMessage("");
   }
 
@@ -867,8 +963,8 @@ function SacredKeyBlock({ sessionId, completeSacredKey, onSuccess }: { sessionId
   }
 
   async function submit() {
-    if (!code.trim()) {
-      setMessage("Please enter the Sacred Access Key.");
+    if (code.length !== SACRED_KEY_LENGTH) {
+      setMessage(`Please enter all ${SACRED_KEY_LENGTH} digits of the Sacred Access Key.`);
       triggerShake();
       return;
     }
@@ -879,7 +975,7 @@ function SacredKeyBlock({ sessionId, completeSacredKey, onSuccess }: { sessionId
       setSuccess(true);
       setMessage("");
       setTimeout(async () => {
-        await onSuccess();
+        await onSuccess(code);
       }, 1250);
       return;
     }
@@ -892,7 +988,7 @@ function SacredKeyBlock({ sessionId, completeSacredKey, onSuccess }: { sessionId
 
   return (
     <View style={local.formStack}>
-      <Text style={local.keyInstruction}>Enter the code shared during the live Sunday session.</Text>
+      <Text style={local.keyInstruction}>Enter the six-digit key shared during the live Sunday session. You will enter it again the next time you open this recording.</Text>
       <Pressable onPress={() => inputRef.current?.focus()}>
         <TextInput
           ref={inputRef}
@@ -901,18 +997,18 @@ function SacredKeyBlock({ sessionId, completeSacredKey, onSuccess }: { sessionId
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           keyboardType="number-pad"
-          maxLength={4}
-          autoCapitalize="characters"
+          maxLength={SACRED_KEY_LENGTH}
+          textContentType="oneTimeCode"
           style={local.hiddenCodeInput}
         />
         <Animated.View style={[local.codeBoxes, shakeStyle]}>
-          {[0, 1, 2, 3].map((item) => (
+          {Array.from({ length: SACRED_KEY_LENGTH }, (_, item) => (
             <CodeBox key={item} filled={Boolean(code[item])} active={focused && code.length === item} value={code[item]} />
           ))}
         </Animated.View>
       </Pressable>
       {message ? <Text style={message.startsWith("Recording") ? local.successText : local.errorText}>{message}</Text> : null}
-      <PrimaryButton label={busy ? "Checking..." : "Unlock Recording"} icon={<Unlock color="#FFFFFF" size={18} />} onPress={submit} disabled={busy} />
+      <PrimaryButton label={busy ? "Checking..." : "Open Recording"} icon={<Unlock color="#FFFFFF" size={18} />} onPress={submit} disabled={busy} />
       {success ? <UnlockSuccess /> : null}
     </View>
   );
@@ -945,7 +1041,7 @@ function UnlockSuccess() {
     <View style={local.unlockSuccess}>
       <LottieView source={unlockSuccessAnimation} autoPlay loop={false} style={local.unlockLottie} />
       <FadeUp delay={180} fromY={6}>
-        <Text style={local.unlockSuccessTitle}>Recording Unlocked</Text>
+        <Text style={local.unlockSuccessTitle}>Access Key Accepted</Text>
       </FadeUp>
     </View>
   );
@@ -970,8 +1066,9 @@ function SessionSummaryCard({ session, primaryLabel, onPrimary, secondaryLabel, 
 }
 
 function PastSessionCard({ session, state, onPress }: { session: Session; state: string; onPress: () => void }) {
-  const tone = state === "unlocked" ? "success" : state === "locked" ? "warning" : "danger";
-  const label = state === "unlocked" ? "Unlocked" : state === "locked" ? "Locked" : "Not uploaded";
+  const available = state !== "not_uploaded";
+  const tone = available ? "warning" : "danger";
+  const label = available ? "Key required" : "Not uploaded";
   return (
     <Pressable onPress={onPress}>
       <PremiumCard>
@@ -980,7 +1077,7 @@ function PastSessionCard({ session, state, onPress }: { session: Session; state:
         <MetaText>{session.session_date ? new Date(session.session_date).toLocaleDateString() : "Past session"}</MetaText>
         <BodyText>{session.topic || session.description}</BodyText>
         <View style={local.buttonRow}>
-          <SecondaryButton label={state === "unlocked" ? "Play Recording" : state === "locked" ? "Enter Sacred Key" : "View"} onPress={onPress} />
+          <SecondaryButton label={available ? "Enter Sacred Key" : "View"} onPress={onPress} />
         </View>
       </PremiumCard>
     </Pressable>
@@ -1185,8 +1282,8 @@ const local = StyleSheet.create({
   formStack: { gap: spacing.md, marginTop: spacing.sm },
   keyInstruction: { color: colors.bodyDark, fontSize: 14, lineHeight: 20 },
   hiddenCodeInput: { position: "absolute", width: 1, height: 1, opacity: 0 },
-  codeBoxes: { flexDirection: "row", gap: 10, marginTop: 2, marginBottom: 2 },
-  codeBox: { flex: 1, height: 56, borderRadius: 12, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: "rgba(255,255,255,0.74)", alignItems: "center", justifyContent: "center" },
+  codeBoxes: { flexDirection: "row", gap: 7, marginTop: 2, marginBottom: 2 },
+  codeBox: { flex: 1, height: 52, borderRadius: 11, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: "rgba(255,255,255,0.74)", alignItems: "center", justifyContent: "center" },
   codeBoxActive: { borderColor: colors.goldBorder, shadowColor: "#C99332", shadowOpacity: 0.16, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
   codeBoxFilled: { borderColor: "rgba(201,147,50,0.32)" },
   codeBoxText: { color: colors.navy, fontSize: 24, lineHeight: 26 },
@@ -1195,17 +1292,32 @@ const local = StyleSheet.create({
   unlockSuccessTitle: { color: colors.navy, fontFamily: "Georgia", fontSize: 22, lineHeight: 28, textAlign: "center" },
   errorText: { color: colors.danger, fontWeight: "800", lineHeight: 21 },
   successText: { color: colors.success, fontWeight: "800", lineHeight: 21 },
-  player: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg, gap: spacing.md },
-  playerCircle: { width: 210, height: 210, borderRadius: 105, backgroundColor: colors.goldWash, borderWidth: 1, borderColor: colors.goldBorder, alignItems: "center", justifyContent: "center", ...shadows.lifted },
-  playerTitle: { color: colors.navy, fontFamily: "Georgia", fontSize: 34, lineHeight: 40, textAlign: "center", marginTop: spacing.lg },
-  playerCategory: { color: colors.gold, fontWeight: "900", fontSize: 16 },
-  playerDuration: { color: colors.mutedText, fontSize: 16 },
-  playerProgressTrack: { width: "100%", maxWidth: 430, height: 8, borderRadius: 999, overflow: "hidden", backgroundColor: "rgba(20,33,66,0.12)", marginTop: spacing.md },
-  playerProgressFill: { height: "100%", borderRadius: 999, backgroundColor: colors.gold },
-  playerTimes: { width: "100%", maxWidth: 430, flexDirection: "row", justifyContent: "space-between", marginTop: -4 },
-  playerControls: { width: "100%", maxWidth: 520, flexDirection: "row", alignItems: "center", gap: 10, marginTop: spacing.sm },
-  playerSmallButton: { flex: 0.76, minHeight: 52, paddingHorizontal: 10 },
-  playerMainButton: { flex: 1.1 },
+  player: { flex: 1, width: "100%", maxWidth: 520, alignItems: "center", justifyContent: "center", alignSelf: "center", gap: 14, paddingVertical: 10 },
+  playerCompact: { gap: 9, paddingVertical: 2 },
+  playerEyebrow: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: "rgba(246,231,198,0.56)", borderWidth: 1, borderColor: "rgba(201,147,50,0.20)" },
+  playerEyebrowText: { color: colors.gold, fontSize: 11, fontWeight: "900", letterSpacing: 1.4 },
+  playerArtworkShell: { width: 286, height: 286, borderRadius: 34, padding: 7, backgroundColor: "rgba(255,253,248,0.92)", borderWidth: 1, borderColor: colors.goldBorder, ...shadows.lifted },
+  playerArtworkShellCompact: { width: 210, height: 210, borderRadius: 28, padding: 6 },
+  playerArtwork: { width: "100%", height: "100%", overflow: "hidden", alignItems: "center", justifyContent: "center", borderRadius: 28 },
+  playerArtworkImage: { width: "100%", height: "100%", borderRadius: 28 },
+  playerArtworkShade: { ...StyleSheet.absoluteFill, borderRadius: 28 },
+  playerArtworkButton: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(17,29,58,0.88)", borderWidth: 1, borderColor: "rgba(255,255,255,0.48)", ...shadows.button },
+  playerCopy: { width: "100%", alignItems: "center", paddingHorizontal: 8 },
+  playerTitle: { color: colors.navy, fontFamily: "Georgia", fontSize: 31, lineHeight: 37, textAlign: "center" },
+  playerTitleCompact: { fontSize: 24, lineHeight: 29 },
+  playerCategory: { color: colors.gold, fontWeight: "900", fontSize: 13, letterSpacing: 0.5, marginTop: 5, textTransform: "uppercase" },
+  playerTimeline: { width: "100%", maxWidth: 460, borderRadius: 20, backgroundColor: "rgba(255,253,248,0.72)", borderWidth: 1, borderColor: "rgba(201,147,50,0.14)", paddingHorizontal: 13, paddingTop: 7, paddingBottom: 9 },
+  playerSlider: { width: "100%", height: 34 },
+  playerTimes: { width: "100%", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 2 },
+  playerDuration: { color: colors.mutedText, fontSize: 13, fontVariant: ["tabular-nums"] },
+  playerControls: { width: "100%", maxWidth: 330, flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 2 },
+  playerSkipButton: { width: 58, height: 58, borderRadius: 29, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,253,248,0.86)", borderWidth: 1, borderColor: colors.borderStrong, ...shadows.soft },
+  playerSkipText: { position: "absolute", color: colors.navy, fontSize: 9, lineHeight: 10, fontWeight: "900" },
+  playerPlayButton: { width: 76, height: 76, borderRadius: 38, alignItems: "center", justifyContent: "center", backgroundColor: colors.navy, borderWidth: 4, borderColor: "rgba(246,231,198,0.92)", ...shadows.button },
+  playerControlPressed: { opacity: 0.82, transform: [{ scale: 0.97 }] },
+  playerControlDisabled: { opacity: 0.45 },
+  playerBackgroundNote: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 2 },
+  playerBackgroundNoteText: { color: colors.body, fontSize: 12.5, lineHeight: 17, textAlign: "center" },
   audioTop: { flexDirection: "row", gap: spacing.md, alignItems: "center", marginBottom: spacing.sm },
   audioIcon: { width: 50, height: 50, borderRadius: 25, backgroundColor: colors.goldWash, alignItems: "center", justifyContent: "center" },
   infoRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },

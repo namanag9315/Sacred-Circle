@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createElement, useEffect, useRef, useState, type ReactNode } from "react";
+import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Animated, Image, ImageBackground, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { MotiView } from "moti";
-import { ArrowRight, Flower2, Headphones, KeyRound, LockKeyhole, Mail, ShieldCheck } from "lucide-react-native";
+import { ArrowRight, CalendarDays, Flower2, Headphones, KeyRound, LockKeyhole, Mail, ShieldCheck } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path } from "react-native-svg";
 import {
@@ -290,11 +291,11 @@ export function ProfileSetupScreen() {
           </FadeUp>
 
           <FadeUp delay={160} style={local.profileSetupCard}>
-            <ProfileSetupField label="Full name" value={name} onChangeText={setName} placeholder="Enter your full name" />
-            <ProfileSetupField label="Mobile number" value={phone} onChangeText={setPhone} placeholder="10 digit mobile number" keyboardType="phone-pad" />
-            <ProfileSetupField label="City" value={city} onChangeText={setCity} placeholder="Enter your city" />
-            <ProfileSetupField label="State" value={state} onChangeText={setState} placeholder="Enter your state" />
-            <ProfileSetupField label="Date of birth" value={dateOfBirth} onChangeText={setDateOfBirth} placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" />
+            <ProfileSetupField label="Full name" value={name} onChangeText={setName} placeholder="Enter your full name" required />
+            <DateOfBirthField value={dateOfBirth} onChangeText={setDateOfBirth} />
+            <ProfileSetupField label="City" value={city} onChangeText={setCity} placeholder="Enter your city" required />
+            <ProfileSetupField label="State" value={state} onChangeText={setState} placeholder="Enter your state" required />
+            <ProfileSetupField label="Mobile number" value={phone} onChangeText={setPhone} placeholder="Enter mobile number" keyboardType="phone-pad" optional />
             {error ? <Text style={local.referenceError}>{error}</Text> : null}
             <AuthActionButton
               label={busy ? "Saving..." : "Save and Continue"}
@@ -314,7 +315,7 @@ function validateProfileSetup(input: { name: string; phone: string; city: string
   const name = input.name.trim();
   if (name.length < 2) return "Please enter your full name.";
   const phoneDigits = input.phone.replace(/\D/g, "");
-  if (phoneDigits.length < 10 || phoneDigits.length > 15) return "Please enter a valid mobile number.";
+  if (phoneDigits && (phoneDigits.length < 10 || phoneDigits.length > 15)) return "Please enter a valid mobile number or leave it blank.";
   if (input.city.trim().length < 2) return "Please enter your city.";
   if (input.state.trim().length < 2) return "Please enter your state.";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dateOfBirth.trim())) return "Please enter your date of birth as YYYY-MM-DD.";
@@ -332,29 +333,134 @@ function ProfileSetupField({
   value,
   onChangeText,
   placeholder,
-  keyboardType = "default"
+  keyboardType = "default",
+  required = false,
+  optional = false
 }: {
   label: string;
   value: string;
   onChangeText: (value: string) => void;
   placeholder: string;
-  keyboardType?: "default" | "phone-pad" | "numbers-and-punctuation";
+  keyboardType?: "default" | "phone-pad";
+  required?: boolean;
+  optional?: boolean;
 }) {
   return (
     <View style={local.profileSetupField}>
-      <Text style={local.profileSetupLabel}>{label}</Text>
+      <Text style={local.profileSetupLabel}>{label}{required ? " *" : optional ? " (optional)" : ""}</Text>
       <TextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={colors.body}
         keyboardType={keyboardType}
-        autoCapitalize={label === "Mobile number" || label === "Date of birth" ? "none" : "words"}
+        autoCapitalize={label === "Mobile number" ? "none" : "words"}
         style={local.profileSetupInput}
       />
     </View>
   );
 }
+
+function DateOfBirthField({ value, onChangeText }: { value: string; onChangeText: (value: string) => void }) {
+  const [showPicker, setShowPicker] = useState(false);
+  const today = startOfToday();
+  const earliest = new Date(today.getFullYear() - 120, today.getMonth(), today.getDate());
+  const selectedDate = parseDateOnly(value) || new Date(today.getFullYear() - 30, today.getMonth(), today.getDate());
+
+  if (Platform.OS === "web") {
+    return (
+      <View style={local.profileSetupField}>
+        <Text style={local.profileSetupLabel}>Date of birth *</Text>
+        <View style={local.profileDateWebShell}>
+          {createElement("input", {
+            type: "date",
+            value,
+            min: formatDateOnly(earliest),
+            max: formatDateOnly(today),
+            required: true,
+            "aria-label": "Date of birth",
+            onChange: (event: any) => onChangeText(event.currentTarget.value),
+            style: webDateInputStyle
+          } as any)}
+          <CalendarDays color={colors.gold} size={20} />
+        </View>
+      </View>
+    );
+  }
+
+  function selectDate(event: DateTimePickerEvent, date?: Date) {
+    if (Platform.OS === "android") setShowPicker(false);
+    if (event.type === "set" && date) onChangeText(formatDateOnly(date));
+  }
+
+  return (
+    <View style={local.profileSetupField}>
+      <Text style={local.profileSetupLabel}>Date of birth *</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Select date of birth"
+        onPress={() => setShowPicker(true)}
+        style={({ pressed }) => [local.profileDateButton, pressed && local.profileDateButtonPressed]}
+      >
+        <Text style={[local.profileDateValue, !value && local.profileDatePlaceholder]}>{value ? formatReadableDate(value) : "Select from calendar"}</Text>
+        <CalendarDays color={colors.gold} size={21} />
+      </Pressable>
+      {showPicker ? (
+        <View style={local.profileDatePickerWrap}>
+          <DateTimePicker
+            value={selectedDate}
+            mode="date"
+            display={Platform.OS === "ios" ? "inline" : "calendar"}
+            minimumDate={earliest}
+            maximumDate={today}
+            onChange={selectDate}
+          />
+          {Platform.OS === "ios" ? (
+            <Pressable onPress={() => setShowPicker(false)} style={local.profileDateDoneButton}>
+              <Text style={local.profileDateDoneText}>Done</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function startOfToday() {
+  const today = new Date();
+  return new Date(today.getFullYear(), today.getMonth(), today.getDate());
+}
+
+function parseDateOnly(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
+}
+
+function formatDateOnly(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatReadableDate(value: string) {
+  const date = parseDateOnly(value);
+  if (!date) return value;
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
+}
+
+const webDateInputStyle = {
+  flex: 1,
+  minWidth: 0,
+  border: 0,
+  outline: "none",
+  background: "transparent",
+  color: colors.navy,
+  fontSize: 16,
+  fontFamily: "inherit"
+};
 
 function AuthLotusDivider() {
   return (
@@ -488,6 +594,14 @@ const local = StyleSheet.create({
   profileSetupField: { gap: 7 },
   profileSetupLabel: { color: colors.navy, fontSize: 13, fontWeight: "900" },
   profileSetupInput: { minHeight: 52, borderRadius: 15, borderWidth: 1, borderColor: "rgba(201,147,50,0.22)", backgroundColor: "#FFFFFF", color: colors.navy, fontSize: 16, paddingHorizontal: 15 },
+  profileDateButton: { minHeight: 52, borderRadius: 15, borderWidth: 1, borderColor: "rgba(201,147,50,0.22)", backgroundColor: "#FFFFFF", paddingHorizontal: 15, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  profileDateButtonPressed: { opacity: 0.78 },
+  profileDateValue: { flex: 1, color: colors.navy, fontSize: 16 },
+  profileDatePlaceholder: { color: colors.body },
+  profileDatePickerWrap: { borderRadius: 18, borderWidth: 1, borderColor: "rgba(201,147,50,0.18)", backgroundColor: "#FFFFFF", overflow: "hidden", padding: 6 },
+  profileDateDoneButton: { alignSelf: "flex-end", paddingHorizontal: 18, paddingVertical: 10 },
+  profileDateDoneText: { color: colors.warning, fontSize: 15, fontWeight: "900" },
+  profileDateWebShell: { minHeight: 52, borderRadius: 15, borderWidth: 1, borderColor: "rgba(201,147,50,0.22)", backgroundColor: "#FFFFFF", paddingHorizontal: 15, flexDirection: "row", alignItems: "center", gap: 12 },
   onboardingContent: { alignItems: "center", paddingTop: 64, paddingBottom: 34 },
   centeredBlock: { alignItems: "center", width: "100%" },
   onboardingTitle: { color: colors.navy, fontFamily: "Georgia", fontSize: 38, lineHeight: 45, textAlign: "center", marginTop: 12 },

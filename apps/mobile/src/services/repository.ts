@@ -11,7 +11,6 @@ import {
   type SacredEvent,
   type Session,
   type SessionRegistration,
-  type UserSessionUnlock,
   type Video
 } from "@sacred-circle/lib";
 import { supabase } from "../lib/supabase";
@@ -166,15 +165,6 @@ export async function listMySessionRegistrations(userId: string): Promise<Sessio
   return error || !data ? [] : (data as SessionRegistration[]);
 }
 
-export async function listMyUnlocks(userId: string): Promise<UserSessionUnlock[]> {
-  if (!supabase) return [];
-  const { data, error } = await supabase
-    .from("user_session_unlocks")
-    .select("*")
-    .eq("user_id", userId);
-  return error || !data ? [] : (data as UserSessionUnlock[]);
-}
-
 export async function unlockSessionRecording(sessionId: string, code: string) {
   if (!supabase) return "service_unavailable";
 
@@ -237,12 +227,15 @@ export async function registerPushToken(input: { user_id: string; expo_push_toke
   return true;
 }
 
-export async function getPlayableResourceUrl(resource: Resource) {
+export async function getPlayableResourceUrl(resource: Resource, accessCode?: string) {
   if (resource.access_type === "public" && resource.external_url) return resource.external_url;
   const client = requireDataClient();
 
   const { data, error } = await client.functions.invoke("get-resource-url", {
-    body: { resource_id: resource.id }
+    body: {
+      resource_id: resource.id,
+      ...(resource.access_type === "session_protected" && accessCode ? { access_code: accessCode.trim() } : {})
+    }
   });
   if (error) throw error;
   const url = typeof data?.url === "string" ? data.url : "";

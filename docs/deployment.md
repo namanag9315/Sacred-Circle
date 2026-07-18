@@ -113,7 +113,8 @@ Manual inventory is the source of truth. Crawling can help find pages/assets, bu
 Before publishing:
 
 1. Confirm there are no SoundHelix URLs, `/demo/` storage paths, channel-only rows in `videos`, or known review access-code rows.
-2. Confirm public resources have approved files and `access_type=public`; protected recordings should be visible in the catalog but playable only after the linked session is unlocked.
+2. Confirm public resources have approved files and `access_type=public`; protected recordings should be visible in the catalog but require the linked session's six-digit key for every new playback.
 3. Confirm public settings contain real WhatsApp and Zoom values or omit those keys until they are ready.
 4. Confirm at least one trusted profile has the admin role and that a normal user cannot change `profiles.role` or `profiles.email`.
 5. Confirm six rapid invalid unlock calls return five `invalid_code`/`expired_code` statuses followed by `rate_limited`, and confirm `session_unlock_attempts` contains no code column.
+6. Immediately after applying the six-digit playback migration, rotate a new six-digit common key; existing active hashes are intentionally deactivated and legacy unlock rows are purged.

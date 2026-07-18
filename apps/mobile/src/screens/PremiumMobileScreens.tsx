@@ -1,7 +1,7 @@
 import {
+  SACRED_KEY_LENGTH,
   formatDuration,
   getRecordingState,
-  canAccessResource,
   getYouTubeThumbnailUrl,
   type Announcement,
   type Resource,
@@ -266,7 +266,7 @@ function formatHeroSessionTime(value?: string | null) {
   return `${date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })} IST`;
 }
 
-const AUDIO_LIBRARY_FILTERS = ["All", "Free", "Unlocked", "Online Shivir", "Offline Shivir"] as const;
+const AUDIO_LIBRARY_FILTERS = ["All", "Free", "Online Shivir", "Offline Shivir"] as const;
 
 function audioGroupLabel(resource: Resource) {
   if (resource.audio_group === "offline_shivir") return "Offline Shivir";
@@ -386,7 +386,7 @@ function DataStateCard({
 }
 
 export function HomeScreen({ navigation }: any) {
-  const { profile, userId, unlocks, completeSacredKey, refreshUnlocks, recordSessionJoin } = useAuth();
+  const { profile, userId, completeSacredKey, recordSessionJoin } = useAuth();
   const { sessions, resources, events, videos, announcements, settings, loading, error, reload } = usePremiumData();
   const { width } = useWindowDimensions();
   const compact = width < 370;
@@ -399,7 +399,7 @@ export function HomeScreen({ navigation }: any) {
   const audioCount = audioResources.length;
   const protectedCount = resources.filter((resource) => resource.type === "audio" && resource.access_type === "session_protected").length;
   const avatarInitial = (profile?.name || profile?.email || "S").trim().slice(0, 1).toUpperCase();
-  const lockedRecording = resources.find((resource) => resource.access_type === "session_protected" && resource.session_id && !canAccessResource(resource, { sessionUnlocks: unlocks }));
+  const protectedRecording = resources.find((resource) => resource.access_type === "session_protected" && resource.session_id);
   const whatsappUrl = settings.whatsapp_group_url?.trim() || "";
 
   async function rememberSessionClick(session?: Session) {
@@ -414,15 +414,6 @@ export function HomeScreen({ navigation }: any) {
   async function joinSession() {
     await rememberSessionClick(liveSession);
     openUrl(liveSession?.zoom_link || settingValue(settings, "default_zoom_link"), "Sacred Circle has not added the session link yet.");
-  }
-
-  async function register(session?: Session) {
-    if (!userId || !session?.id) {
-      Alert.alert("Registration unavailable", "Sign in and choose an upcoming session to register.");
-      return;
-    }
-    await recordSessionJoin(session.id);
-    Alert.alert("Registered", "You are registered for this session.");
   }
 
   return (
@@ -447,7 +438,7 @@ export function HomeScreen({ navigation }: any) {
           </View>
 
           <View style={premium.homeHeroGreeting}>
-            <Text style={premium.heroGreeting}>{name ? `Namaste, ${name}` : "Namaste"}</Text>
+            <Text style={premium.heroGreeting}>{name ? `Namaste, ${name} Ji` : "Namaste Ji"}</Text>
             <View style={premium.heroGoldRule} />
             <Text style={premium.heroGreetingText}>Welcome to your sacred space of healing, meditation and inner awakening.</Text>
           </View>
@@ -469,7 +460,6 @@ export function HomeScreen({ navigation }: any) {
               </View>
               <View style={premium.heroSessionActions}>
                 <PrimaryButton label="Join Session" icon={<ChevronRight color="#FFFFFF" size={17} />} onPress={joinSession} style={premium.heroPrimaryButton} textStyle={premium.heroButtonText} />
-                <SecondaryButton label="Register" onPress={() => register(liveSession)} style={premium.heroSecondaryButton} textStyle={premium.heroSecondaryText} />
               </View>
             </View>
           ) : null}
@@ -506,13 +496,10 @@ export function HomeScreen({ navigation }: any) {
 
           <FadeUp delay={270}>
             <HomeAccessKeyCard
-              recording={lockedRecording}
+              recording={protectedRecording}
               protectedCount={protectedCount}
-              onUnlock={async (sessionId, code) => {
-                const result = await completeSacredKey(sessionId, code);
-                if (result === "unlocked" || result === "already_unlocked") await refreshUnlocks();
-                return result;
-              }}
+              onUnlock={completeSacredKey}
+              onAuthorized={(recording, accessCode) => navigateApp(navigation, "AudioPlayer", { resource: recording, accessCode })}
               onOpenRecordings={() => navigateApp(navigation, "Audio")}
             />
           </FadeUp>
@@ -551,7 +538,7 @@ export function HomeScreen({ navigation }: any) {
 }
 
 export function SessionsScreen({ navigation }: any) {
-  const { userId, unlocks, recordSessionJoin } = useAuth();
+  const { userId, recordSessionJoin } = useAuth();
   const { sessions, resources, settings, loading, error, reload } = usePremiumData();
   const upcoming = sessions.filter((session) => session.status === "live" || (session.status === "upcoming" && Date.parse(session.session_date || "") >= Date.now()));
   const past = sessions.filter((session) => session.status === "completed");
@@ -609,7 +596,7 @@ export function SessionsScreen({ navigation }: any) {
           <Text style={premium.sectionTitle}>Past Sessions</Text>
           {past.length ? past.map((session, index) => {
             const resource = resources.find((item) => item.session_id === session.id);
-            const state = getRecordingState(resource, { sessionUnlocks: unlocks });
+            const state = getRecordingState(resource);
             return (
               <FadeUp key={session.id} delay={360 + index * 70}>
                 <Pressable onPress={() => navigateApp(navigation, "SessionDetail", { session })}>
@@ -618,7 +605,7 @@ export function SessionsScreen({ navigation }: any) {
                       <Text style={premium.rowTitle}>{session.title}</Text>
                       <Text style={premium.rowSub}>{formatShortDate(session.session_date)}</Text>
                     </View>
-                    <StatusBadge label={state === "unlocked" ? "Unlocked" : state === "locked" ? "Locked" : "Not uploaded"} tone={state === "unlocked" ? "success" : state === "locked" ? "warning" : "danger"} />
+                    <StatusBadge label={state === "not_uploaded" ? "Not uploaded" : "Key required"} tone={state === "not_uploaded" ? "danger" : "warning"} />
                   </PremiumCard>
                 </Pressable>
               </FadeUp>
@@ -631,7 +618,7 @@ export function SessionsScreen({ navigation }: any) {
 }
 
 export function MeditationsScreen({ navigation }: any) {
-  const { profile, unlocks } = useAuth();
+  const { profile } = useAuth();
   const { sessions, resources, loading, error, reload } = usePremiumData();
   const { width } = useWindowDimensions();
   const isNarrowPhone = width < 430;
@@ -655,9 +642,7 @@ export function MeditationsScreen({ navigation }: any) {
   const filteredAudio = useMemo(
     () => audioResources.filter((resource) => {
       const group = audioGroupLabel(resource);
-      const isUnlocked = resource.access_type === "session_protected" && canAccessResource(resource, { sessionUnlocks: unlocks });
-      const categoryMatches = selectedCategory === "All"
-        || (selectedCategory === "Unlocked" ? isUnlocked : group === selectedCategory);
+      const categoryMatches = selectedCategory === "All" || group === selectedCategory;
       const locationMatches = selectedCategory !== "Offline Shivir"
         || selectedLocation === "All Locations"
         || resource.shivir_location === selectedLocation;
@@ -665,7 +650,7 @@ export function MeditationsScreen({ navigation }: any) {
         && locationMatches
         && matchesSearch([resource.title, resource.description, resource.category, group, resource.shivir_location], query);
     }),
-    [audioResources, query, selectedCategory, selectedLocation, unlocks]
+    [audioResources, query, selectedCategory, selectedLocation]
   );
   const featuredAudio = filteredAudio.find((item) => item.is_featured) || null;
   const categories = [...AUDIO_LIBRARY_FILTERS];
@@ -687,8 +672,7 @@ export function MeditationsScreen({ navigation }: any) {
   }
 
   function openAudio(resource: Resource) {
-    const unlocked = canAccessResource(resource, { sessionUnlocks: unlocks });
-    if (resource.access_type === "session_protected" && !unlocked) {
+    if (resource.access_type === "session_protected") {
       openProtectedResource(resource);
       return;
     }
@@ -701,9 +685,6 @@ export function MeditationsScreen({ navigation }: any) {
   }
 
   function filterCount(category: string) {
-    if (category === "Unlocked") {
-      return audioResources.filter((resource) => resource.access_type === "session_protected" && canAccessResource(resource, { sessionUnlocks: unlocks })).length;
-    }
     return audioResources.filter((resource) => audioGroupLabel(resource) === category).length;
   }
 
@@ -809,13 +790,12 @@ export function MeditationsScreen({ navigation }: any) {
 
           {filteredAudio.length ? <SectionHead title={selectedCategory === "All" ? "All Audios" : selectedLocation !== "All Locations" ? selectedLocation : selectedCategory} /> : null}
           {filteredAudio.map((resource, index) => {
-            const unlocked = canAccessResource(resource, { sessionUnlocks: unlocks });
             return (
               <AudioListRow
                 key={resource.id}
                 resource={resource}
                 image={index % 2 ? sunriseLotus : templeLake}
-                locked={resource.access_type === "session_protected" && !unlocked}
+                locked={resource.access_type === "session_protected"}
                 onPress={() => openAudio(resource)}
               />
             );
@@ -899,7 +879,7 @@ export function MoreScreen({ navigation }: any) {
 }
 
 export function ProfileScreen({ navigation }: any) {
-  const { profile, unlocks, updateProfile, deleteMyAccount, signOut } = useAuth();
+  const { profile, updateProfile, deleteMyAccount, signOut } = useAuth();
   const { settings } = usePremiumData();
   const { width, fontScale } = useWindowDimensions();
   const compactLayout = width < 380 || fontScale > 1.15;
@@ -1034,7 +1014,7 @@ export function ProfileScreen({ navigation }: any) {
         {profile ? <MoreRow label="Personal Details" icon={<User color={colors.navy} size={19} />} onPress={() => setEditing(true)} /> : null}
         {profile?.phone ? <MoreRow label="Mobile Number" icon={<User color={colors.navy} size={19} />} trailing={profile.phone} /> : null}
         {profile?.city ? <MoreRow label="City" icon={<MapPin color={colors.navy} size={19} />} trailing={profile.city} /> : null}
-        <MoreRow label="My Recordings" icon={<Headphones color={colors.navy} size={19} />} trailing={`${unlocks.length}`} onPress={() => navigateApp(navigation, "Audio")} />
+        <MoreRow label="Audio Library" icon={<Headphones color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "Audio")} />
         <MoreRow label="Sacred Access Key" icon={<LockKeyhole color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "Sessions")} />
         <MoreRow label="Contact and Help" icon={<HelpCircle color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "Help")} />
         {settings.privacy_policy ? <MoreRow label="Privacy Policy" icon={<Info color={colors.navy} size={19} />} onPress={() => Alert.alert("Privacy Policy", settings.privacy_policy)} /> : null}
@@ -1349,11 +1329,13 @@ function HomeAccessKeyCard({
   recording,
   protectedCount,
   onUnlock,
+  onAuthorized,
   onOpenRecordings
 }: {
   recording?: Resource;
   protectedCount: number;
   onUnlock: (sessionId: string, code: string) => Promise<string>;
+  onAuthorized: (recording: Resource, accessCode: string) => void;
   onOpenRecordings: () => void;
 }) {
   const [code, setCode] = useState("");
@@ -1362,19 +1344,21 @@ function HomeAccessKeyCard({
 
   async function submit() {
     if (!recording?.session_id) {
-      setMessage(protectedCount ? "Your available session recordings are already unlocked." : "No protected recording is available yet.");
+      setMessage(protectedCount ? "Choose a protected recording from the Audio Library." : "No protected recording is available yet.");
       return;
     }
-    if (code.length !== 4) {
-      setMessage("Enter the 4-character key shared during the live session.");
+    if (code.length !== SACRED_KEY_LENGTH) {
+      setMessage(`Enter the complete ${SACRED_KEY_LENGTH}-digit key shared during the live session.`);
       return;
     }
     setBusy(true);
     const result = await onUnlock(recording.session_id, code);
     setBusy(false);
     if (result === "unlocked" || result === "already_unlocked") {
+      const accessCode = code;
       setCode("");
-      setMessage("Recording unlocked. You can now open My Recordings.");
+      setMessage("");
+      onAuthorized(recording, accessCode);
     } else if (result === "expired_code") setMessage("This Sacred Access Key has expired.");
     else if (result === "rate_limited") setMessage("Too many attempts. Please wait and try again.");
     else if (result === "auth_required" || result === "service_unavailable") setMessage("Please sign in and try again.");
@@ -1387,29 +1371,30 @@ function HomeAccessKeyCard({
         <View style={premium.compactCardIcon}><LockKeyhole color={colors.gold} size={22} /></View>
         <View style={premium.compactCardCopy}>
           <Text style={premium.compactCardTitle}>Sacred Access Key</Text>
-          <Text style={premium.compactCardText}>Enter the key shared during a Sunday session to unlock its protected recording.</Text>
+          <Text style={premium.compactCardText}>Enter the six-digit key to open this protected recording. The key is required again next time.</Text>
         </View>
       </View>
       {recording?.session_id ? (
         <View style={premium.accessKeyControls}>
           <TextInput
             accessibilityLabel="Sacred Access Key"
-            autoCapitalize="characters"
             autoCorrect={false}
-            maxLength={4}
+            keyboardType="number-pad"
+            textContentType="oneTimeCode"
+            maxLength={SACRED_KEY_LENGTH}
             value={code}
             onChangeText={(value) => {
-              setCode(value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase());
+              setCode(value.replace(/\D/g, "").slice(0, SACRED_KEY_LENGTH));
               setMessage("");
             }}
-            placeholder="Enter key"
+            placeholder="6 digits"
             placeholderTextColor={colors.body}
             style={premium.accessKeyInput}
           />
-          <PrimaryButton label={busy ? "Unlocking..." : "Unlock Recording"} onPress={submit} disabled={busy} style={premium.accessKeyButton} />
+          <PrimaryButton label={busy ? "Checking..." : "Open Recording"} onPress={submit} disabled={busy} style={premium.accessKeyButton} />
         </View>
       ) : (
-        <SecondaryButton label="My Recordings" onPress={onOpenRecordings} style={premium.accessKeyOpenButton} textStyle={premium.listenText} />
+        <SecondaryButton label="Open Audio Library" onPress={onOpenRecordings} style={premium.accessKeyOpenButton} textStyle={premium.listenText} />
       )}
       {message ? <Text style={premium.accessKeyMessage}>{message}</Text> : null}
     </PremiumCard>
@@ -1564,9 +1549,7 @@ const premium = StyleSheet.create({
   metaLineText: { color: colors.bodyDark, fontSize: 12.5, lineHeight: 17, flexShrink: 1 },
   sessionActionRow: { position: "absolute", left: 18, right: 18, bottom: 16, zIndex: 4, flexDirection: "row", gap: 10, alignItems: "center" },
   heroPrimaryButton: { flex: 1, minHeight: 48, borderRadius: 13, paddingHorizontal: 10 },
-  heroSecondaryButton: { flex: 0.82, minHeight: 48, borderRadius: 13, paddingHorizontal: 10, backgroundColor: "rgba(255,253,248,0.90)" },
   heroButtonText: { fontSize: 13 },
-  heroSecondaryText: { fontSize: 13, color: colors.gold },
   homeSessionArt: { position: "absolute", right: 0, top: 0, bottom: 0, width: "51%", height: "100%", opacity: 0.94, borderTopLeftRadius: 164, borderBottomLeftRadius: 164, borderTopRightRadius: 28, borderBottomRightRadius: 28 },
   homeSessionArtCompact: { width: "46%", opacity: 0.86 },
   freeAudioCard: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16, padding: 12, minHeight: 128 },

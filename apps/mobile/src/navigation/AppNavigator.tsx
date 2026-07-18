@@ -251,7 +251,6 @@ export function AppNavigator() {
 function isProfileComplete(profile: { name?: string | null; phone?: string | null; city?: string | null; state?: string | null; date_of_birth?: string | null }) {
   return Boolean(
     profile.name?.trim() &&
-    profile.phone?.trim() &&
     profile.city?.trim() &&
     profile.state?.trim() &&
     profile.date_of_birth?.trim()

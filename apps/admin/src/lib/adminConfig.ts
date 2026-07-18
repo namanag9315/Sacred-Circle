@@ -45,12 +45,12 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
   sessionAccessCodes: {
     title: "Sacred Access Keys",
     eyebrow: "Session unlock",
-    description: "Create session-specific Sacred Access Keys. Use the database function in production so the plain code is hashed before storage.",
+    description: "Create six-digit, session-specific Sacred Access Keys. The plain code is hashed before storage and members enter it for each new protected playback.",
     table: "session_access_codes",
     columns: ["session_id", "code_label", "starts_at", "expires_at", "is_active"],
     fields: [
       { key: "session_id", label: "Session", type: "relation", relation: { table: "sessions", valueKey: "id", labelKeys: ["title", "session_date"], orderKey: "session_date" } },
-      { key: "__plain_code", label: "Sacred Access Key", type: "text", helper: "This is hashed through the database function. It is not saved as plain text." },
+      { key: "__plain_code", label: "6-digit Sacred Access Key", type: "text", helper: "Use exactly six numbers. This is hashed through the database function and is not saved as plain text." },
       { key: "code_label", label: "Key label", type: "text" },
       { key: "starts_at", label: "Starts at", type: "datetime" },
       { key: "expires_at", label: "Expires at", type: "datetime" },
@@ -61,14 +61,14 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
   meditations: {
     title: "Audio & Resources",
     eyebrow: "Media library",
-    description: "Add Free, Online Shivir and Offline Shivir audios. Unlocked is calculated automatically for each member.",
+    description: "Add Free, Online Shivir and Offline Shivir audios. Protected playback requires the Sacred Access Key each time.",
     table: "resources",
     columns: ["title", "type", "audio_group", "recorded_at", "shivir_location", "access_type", "status"],
     fields: [
       { key: "title", label: "Title", type: "text" },
       { key: "description", label: "Description", type: "textarea" },
       { key: "type", label: "Type", type: "select", options: ["audio", "pdf", "article", "video"] },
-      { key: "audio_group", label: "Audio group", type: "select", options: ["free", "online_shivir", "offline_shivir"], helper: "Unlocked is user-specific and does not need to be selected here." },
+      { key: "audio_group", label: "Audio group", type: "select", options: ["free", "online_shivir", "offline_shivir"], helper: "Free audio is open; protected audio requests the Sacred Access Key for each playback." },
       { key: "recorded_at", label: "Recording date", type: "date", helper: "The library is sorted newest to oldest by this date." },
       { key: "shivir_location", label: "Offline Shivir location", type: "text", helper: "Required only for Offline Shivir audio." },
       { key: "category", label: "Internal label", type: "text", helper: "Use Free, Online Shivir or Offline Shivir." },
@@ -179,18 +179,6 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
     ],
     demoRows: []
   },
-  userUnlocks: {
-    title: "Manual Unlocks",
-    eyebrow: "User access",
-    description: "Grant or revoke access to a specific session recording for one user. Each unlock is session-specific.",
-    table: "user_session_unlocks",
-    columns: ["user_id", "session_id", "unlocked_at"],
-    fields: [
-      { key: "user_id", label: "User", type: "relation", relation: { table: "profiles", valueKey: "id", labelKeys: ["name", "email", "phone"], orderKey: "name" } },
-      { key: "session_id", label: "Session", type: "relation", relation: { table: "sessions", valueKey: "id", labelKeys: ["title", "session_date"], orderKey: "session_date" } }
-    ],
-    demoRows: []
-  },
   contactSubmissions: {
     title: "Contact Messages",
     eyebrow: "Contact",
@@ -260,6 +248,5 @@ export const sessionConfigs = [
 ];
 
 export const userConfigs = [
-  moduleConfigs.users,
-  moduleConfigs.userUnlocks
+  moduleConfigs.users
 ];

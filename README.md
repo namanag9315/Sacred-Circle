@@ -1,6 +1,6 @@
 # Sacred Circle
 
-Sacred Circle is a simple, premium, light-themed meditation and healing app for Sunday Zoom sessions, free meditations, session-specific Sacred Access Key unlocks, and app-friendly website content.
+Sacred Circle is a simple, premium, light-themed meditation and healing app for Sunday Zoom sessions, free meditations, per-playback Sacred Access Key authorization, and app-friendly website content.
 
 The product rule is simple: if a 55-65 year old user cannot understand a screen without explanation, simplify it.
 
@@ -34,9 +34,7 @@ This monorepo contains:
 
    supabase/schema.sql
    supabase/rls.sql
-   supabase/migrations/202607110001_cleanup_demo_content.sql
-   supabase/migrations/202607110002_public_content_read_policies.sql
-   supabase/migrations/202607110003_protect_profile_identity_and_role.sql
+   supabase/migrations/*.sql (in filename order)
    supabase/seed.sql
 
    For an existing project, apply only the unapplied timestamped migrations.
@@ -72,7 +70,7 @@ When Supabase credentials are missing or a query fails, user-facing apps show an
 
 - Mobile bottom tabs: Home, Sessions, Meditations, More.
 - More contains Programs, Events, Videos, About, Contact, WhatsApp, Profile, Help, and Logout.
-- The Sacred Access Key is session-specific. It unlocks only the protected healing audio for that Sunday session.
+- The six-digit Sacred Access Key is session-specific and must be entered for each new playback of that Sunday's protected healing audio.
 - Videos are YouTube links only.
 - Live sessions use external Zoom links only.
 - Protected audio is streamed through short-lived signed URLs, not permanent public URLs.

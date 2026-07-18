@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import {
+  SACRED_KEY_LENGTH,
   formatDuration,
   getYouTubeThumbnailUrl,
   type Profile as MemberProfile,
@@ -36,7 +37,6 @@ import {
   Play,
   Search,
   Trash2,
-  Unlock,
   User,
   Video,
   X
@@ -71,7 +71,6 @@ export default function LandingPage() {
   const [profile, setProfile] = useState<MemberProfile | null>(null);
   const [profileDraft, setProfileDraft] = useState({ name: "", phone: "", city: "", state: "", date_of_birth: "" });
   const [registrationCount, setRegistrationCount] = useState(0);
-  const [unlockSessionIds, setUnlockSessionIds] = useState<string[]>([]);
 
   const [sessions, setSessions] = useState<Session[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
@@ -96,8 +95,8 @@ export default function LandingPage() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
-  const [unlockSessionId, setUnlockSessionId] = useState<string | null>(null);
-  const [keyDigits, setKeyDigits] = useState(["", "", "", ""]);
+  const [protectedTrack, setProtectedTrack] = useState<Resource | null>(null);
+  const [keyDigits, setKeyDigits] = useState<string[]>(() => Array(SACRED_KEY_LENGTH).fill(""));
   const [unlockBusy, setUnlockBusy] = useState(false);
 
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -141,12 +140,7 @@ export default function LandingPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const videoSearchRef = useRef<HTMLInputElement>(null);
-  const keyInputRefs = [
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null)
-  ];
+  const keyInputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   const user = authSession?.user || null;
 
@@ -226,17 +220,15 @@ export default function LandingPage() {
       );
 
       if (user) {
-        const [profileResult, sessionRegistrationsResult, eventRegistrationsResult, unlocksResult] = await Promise.all([
+        const [profileResult, sessionRegistrationsResult, eventRegistrationsResult] = await Promise.all([
           supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
           supabase.from("session_registrations").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "registered"),
-          supabase.from("event_registrations").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-          supabase.from("user_session_unlocks").select("session_id").eq("user_id", user.id)
+          supabase.from("event_registrations").select("id", { count: "exact", head: true }).eq("user_id", user.id)
         ]);
 
         if (profileResult.error) failures.push(`Profile: ${profileResult.error.message}`);
         if (sessionRegistrationsResult.error) failures.push(`Session registrations: ${sessionRegistrationsResult.error.message}`);
         if (eventRegistrationsResult.error) failures.push(`Event registrations: ${eventRegistrationsResult.error.message}`);
-        if (unlocksResult.error) failures.push(`Recording access: ${unlocksResult.error.message}`);
 
         const loadedProfile = (profileResult.data || null) as MemberProfile | null;
         setProfile(loadedProfile);
@@ -255,12 +247,10 @@ export default function LandingPage() {
           city: loadedProfile?.city || current.city
         }));
         setRegistrationCount(sessionRegistrationsResult.count || 0);
-        setUnlockSessionIds((unlocksResult.data || []).map((item) => String(item.session_id)));
       } else {
         setProfile(null);
         setProfileDraft({ name: "", phone: "", city: "", state: "", date_of_birth: "" });
         setRegistrationCount(0);
-        setUnlockSessionIds([]);
       }
 
       if (failures.length) setDataError(failures.join(" "));
@@ -343,7 +333,6 @@ export default function LandingPage() {
 
   const audios = useMemo(() => resources.filter(isRealPlayableAudio), [resources]);
   const publicAudios = useMemo(() => audios.filter((resource) => resource.access_type === "public"), [audios]);
-  const protectedAudios = useMemo(() => audios.filter((resource) => resource.access_type === "session_protected" && resource.session_id), [audios]);
   const audioCategories = useMemo(
     () => ["All Audio", ...Array.from(new Set(audios.map((resource) => resource.category.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b))],
     [audios]
@@ -364,20 +353,12 @@ export default function LandingPage() {
 
   const featuredAudio = filteredAudios.find((resource) => resource.is_featured) || filteredAudios[0] || null;
   const audioList = featuredAudio ? filteredAudios.filter((resource) => resource.id !== featuredAudio.id) : [];
-  const unlockSet = useMemo(() => new Set(unlockSessionIds), [unlockSessionIds]);
-  const firstLockedRecording = protectedAudios.find((resource) => resource.session_id && !unlockSet.has(resource.session_id)) || null;
-  const unlockedRecordings = protectedAudios.filter((resource) => resource.session_id && unlockSet.has(resource.session_id));
-
-  useEffect(() => {
-    if (firstLockedRecording?.session_id && !unlockSessionId) setUnlockSessionId(firstLockedRecording.session_id);
-    if (unlockSessionId && !protectedAudios.some((resource) => resource.session_id === unlockSessionId)) setUnlockSessionId(null);
-  }, [firstLockedRecording?.session_id, protectedAudios, unlockSessionId]);
 
   const now = Date.now();
   const nextSession = sessions.find((session) => session.status === "live") || sessions.find((session) => session.status === "upcoming" && dateValue(session.session_date) >= now) || null;
   const nextEvent = events.find((event) => event.event_date && dateValue(event.event_date) >= now) || null;
-  const unlockSession = sessions.find((session) => session.id === unlockSessionId) || null;
   const displayName = profile?.name?.trim() || user?.email?.split("@")[0] || "";
+  const heroFirstName = firstName(displayName);
   const memberEmail = profile?.email || user?.email || "";
   const avatarInitial = (displayName || memberEmail || "S").slice(0, 1).toUpperCase();
   const avatarUrl = safeHttpUrl(
@@ -388,7 +369,7 @@ export default function LandingPage() {
         : null
   );
   const memberSince = profile?.created_at ? formatMonthYear(profile.created_at) : "";
-  const homeTitle = displayName ? `Namaste, ${displayName}` : "Welcome to Sacred Circle";
+  const homeTitle = heroFirstName ? `Namaste, ${heroFirstName} Ji` : "Welcome to Sacred Circle";
   const homeSubtitle = user
     ? "Your sessions, recordings and Sacred Circle media are gathered here."
     : "Sign in to access sessions, audio resources and your Sacred Circle profile.";
@@ -516,7 +497,6 @@ export default function LandingPage() {
       setEvents([]);
       setSettings({});
       setRegistrationCount(0);
-      setUnlockSessionIds([]);
       setCurrentTrack(null);
       setAudioUrl("");
       setIsPlaying(false);
@@ -527,25 +507,6 @@ export default function LandingPage() {
       showToast(errorMessage(error, "Unable to delete your account."), "error");
     } finally {
       setDeleteBusy(false);
-    }
-  }
-
-  async function registerForSession(session: Session) {
-    if (!supabase || !user) {
-      requestSignIn();
-      return;
-    }
-    try {
-      const { error } = await supabase.from("session_registrations").upsert({
-        user_id: user.id,
-        session_id: session.id,
-        status: "registered"
-      }, { onConflict: "user_id,session_id" });
-      if (error) throw error;
-      showToast("Session registration saved.", "success");
-      await loadData();
-    } catch (error) {
-      showToast(errorMessage(error, "Unable to register for this session."), "error");
     }
   }
 
@@ -573,39 +534,45 @@ export default function LandingPage() {
     }
   }
 
-  async function resolveResourceUrl(resource: Resource) {
+  async function resolveResourceUrl(resource: Resource, accessCode?: string) {
     const directUrl = realExternalAudioUrl(resource.external_url);
     if (resource.access_type === "public" && directUrl) return directUrl;
     if (!supabase || !user) throw new Error("Please sign in to play this audio.");
-    const { data, error } = await supabase.functions.invoke("get-resource-url", { body: { resource_id: resource.id } });
+    const { data, error } = await supabase.functions.invoke("get-resource-url", {
+      body: {
+        resource_id: resource.id,
+        ...(resource.access_type === "session_protected" && accessCode ? { access_code: accessCode } : {})
+      }
+    });
     if (error) throw error;
     const url = safeHttpUrl(data?.url);
     if (!url) throw new Error("A playable audio URL was not returned.");
     return url;
   }
 
-  async function playTrack(resource: Resource) {
-    if (resource.access_type === "session_protected" && resource.session_id && !unlockSet.has(resource.session_id)) {
+  async function playTrack(resource: Resource, accessCode?: string) {
+    if (resource.access_type === "session_protected" && !accessCode) {
       if (!user) {
         requestSignIn();
-        return;
+        return false;
       }
-      setUnlockSessionId(resource.session_id);
-      goToTab("home");
-      window.setTimeout(() => keyInputRefs[0].current?.focus(), 200);
-      showToast("Enter the Sacred Access Key for this recording.", "error");
-      return;
+      setProtectedTrack(resource);
+      setKeyDigits(Array(SACRED_KEY_LENGTH).fill(""));
+      window.setTimeout(() => keyInputRefs.current[0]?.focus(), 120);
+      return false;
     }
 
     setIsAudioLoading(true);
     try {
-      const url = await resolveResourceUrl(resource);
+      const url = await resolveResourceUrl(resource, accessCode);
       setCurrentTrack(resource);
       setCurrentTime(0);
       setDuration(resource.duration_seconds || 0);
       setAudioUrl(url);
+      return true;
     } catch (error) {
       showToast(errorMessage(error, "This audio is unavailable."), "error");
+      return false;
     } finally {
       setIsAudioLoading(false);
     }
@@ -644,11 +611,20 @@ export default function LandingPage() {
   }
 
   function handleKeyDigitChange(index: number, value: string) {
-    const cleanValue = value.replace(/[^0-9]/g, "").slice(-1);
+    const cleanValue = value.replace(/[^0-9]/g, "");
     const nextDigits = [...keyDigits];
-    nextDigits[index] = cleanValue;
+    if (cleanValue.length > 1) {
+      cleanValue.slice(0, SACRED_KEY_LENGTH - index).split("").forEach((digit, offset) => {
+        nextDigits[index + offset] = digit;
+      });
+    } else {
+      nextDigits[index] = cleanValue.slice(-1);
+    }
     setKeyDigits(nextDigits);
-    if (cleanValue && index < 3) keyInputRefs[index + 1].current?.focus();
+    if (cleanValue) {
+      const nextIndex = Math.min(index + Math.max(cleanValue.length, 1), SACRED_KEY_LENGTH - 1);
+      keyInputRefs.current[nextIndex]?.focus();
+    }
   }
 
   async function unlockRecording() {
@@ -657,15 +633,15 @@ export default function LandingPage() {
       requestSignIn();
       return;
     }
-    if (!unlockSessionId || code.length !== 4) {
-      showToast("Enter the complete 4-digit Sacred Access Key.", "error");
+    if (!protectedTrack?.session_id || code.length !== SACRED_KEY_LENGTH) {
+      showToast(`Enter the complete ${SACRED_KEY_LENGTH}-digit Sacred Access Key.`, "error");
       return;
     }
 
     setUnlockBusy(true);
     try {
       const { data, error } = await supabase.rpc("unlock_session_recording", {
-        p_session_id: unlockSessionId,
+        p_session_id: protectedTrack.session_id,
         p_code: code
       });
       if (error) throw error;
@@ -676,15 +652,17 @@ export default function LandingPage() {
         if (result === "auth_required") throw new Error("Please sign in before entering a Sacred Access Key.");
         throw new Error("The Sacred Access Key is incorrect.");
       }
-      setUnlockSessionIds((current) => Array.from(new Set([...current, unlockSessionId])));
-      setKeyDigits(["", "", "", ""]);
-      showToast(result === "already_unlocked" ? "This recording is already unlocked." : "Recording unlocked.", "success");
-      await loadData();
+      const started = await playTrack(protectedTrack, code);
+      if (started) {
+        setProtectedTrack(null);
+        setKeyDigits(Array(SACRED_KEY_LENGTH).fill(""));
+        showToast("Access key accepted. The recording is now playing.", "success");
+      }
     } catch (error) {
       const message = errorMessage(error, "The Sacred Access Key was not accepted.");
       showToast(message.includes("expired_code") ? "This Sacred Access Key has expired." : message.includes("invalid_code") ? "The Sacred Access Key is incorrect." : message, "error");
-      setKeyDigits(["", "", "", ""]);
-      keyInputRefs[0].current?.focus();
+      setKeyDigits(Array(SACRED_KEY_LENGTH).fill(""));
+      keyInputRefs.current[0]?.focus();
     } finally {
       setUnlockBusy(false);
     }
@@ -835,7 +813,6 @@ export default function LandingPage() {
                   <div className="premium-hero-session-art" aria-hidden="true"><img src="/landing-session-lotus.png" alt="" /></div>
                   <div className="premium-hero-session-actions">
                     {safeExternalLink(nextSession.zoom_link || settings.default_zoom_link) ? <a href={String(safeExternalLink(nextSession.zoom_link || settings.default_zoom_link))} target="_blank" rel="noreferrer" className="premium-btn premium-btn-primary">Join Session <span>→</span></a> : <button className="premium-btn premium-btn-primary" onClick={requestSignIn}>Join Session <span>→</span></button>}
-                    <button className="premium-btn premium-btn-secondary" onClick={() => void registerForSession(nextSession)}>Register</button>
                   </div>
                 </div>
               ) : null}
@@ -961,8 +938,10 @@ export default function LandingPage() {
                 <div className="premium-section-head"><h2>Audio Library</h2></div>
                 <div className="premium-audio-list">
                   {audioList.map((resource) => {
-                    const locked = resource.access_type === "session_protected" && Boolean(resource.session_id) && !unlockSet.has(String(resource.session_id));
-                    return <button className="premium-audio-row production-audio-row" key={resource.id} onClick={() => playOrToggle(resource)}><span className="premium-audio-row-thumb"><img src="/landing-shivir-lake.png" alt="" /><span>{locked ? <Lock size={15} /> : currentTrack?.id === resource.id && isPlaying ? <Pause size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" />}</span></span><span className="premium-audio-row-copy"><h3>{resource.title}</h3><p>{formatDuration(resource.duration_seconds || 0)} · {resource.category}</p></span><span className={`production-audio-status ${locked ? "locked" : ""}`}>{locked ? "Key required" : resource.access_type === "session_protected" ? "Unlocked" : "Play"}</span></button>;
+                    const active = currentTrack?.id === resource.id;
+                    const locked = resource.access_type === "session_protected" && !active;
+                    const status = active ? isPlaying ? "Playing" : "Paused" : locked ? "Key required" : "Play";
+                    return <button className="premium-audio-row production-audio-row" key={resource.id} onClick={() => playOrToggle(resource)}><span className="premium-audio-row-thumb"><img src="/landing-shivir-lake.png" alt="" /><span>{locked ? <Lock size={15} /> : active && isPlaying ? <Pause size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" />}</span></span><span className="premium-audio-row-copy"><h3>{resource.title}</h3><p>{formatDuration(resource.duration_seconds || 0)} · {resource.category}</p></span><span className={`production-audio-status ${locked ? "locked" : ""}`}>{status}</span></button>;
                   })}
                 </div>
               </section>
@@ -989,15 +968,13 @@ export default function LandingPage() {
 
                 <section className="premium-profile-stats production-real-stats">
                   <div className="premium-profile-stat"><span><Calendar size={27} /></span><strong>{registrationCount}</strong><small>Sessions Attended</small></div>
-                  <div className="premium-profile-stat"><span><Unlock size={28} /></span><strong>{unlockSessionIds.length}</strong><small>Unlocked Recordings</small></div>
+                  <div className="premium-profile-stat"><span><Lock size={28} /></span><strong>Every play</strong><small>Sacred Key Required</small></div>
                 </section>
 
                 <section className="production-profile-form-card">
                   <div className="premium-profile-section-head"><div><h2>Personal Details</h2><p>Keep only the details Sacred Circle needs for sessions and support.</p></div></div>
-                  <form className="production-profile-form" onSubmit={saveProfile}><label>Name<input value={profileDraft.name} onChange={(event) => setProfileDraft({ ...profileDraft, name: event.target.value })} autoComplete="name" required /></label><label>Email<input value={memberEmail} readOnly disabled /></label><label>Phone<input value={profileDraft.phone} onChange={(event) => setProfileDraft({ ...profileDraft, phone: event.target.value })} autoComplete="tel" /></label><label>City<input value={profileDraft.city} onChange={(event) => setProfileDraft({ ...profileDraft, city: event.target.value })} autoComplete="address-level2" /></label><label>State<input value={profileDraft.state} onChange={(event) => setProfileDraft({ ...profileDraft, state: event.target.value })} autoComplete="address-level1" /></label><label>Date of Birth<input type="date" value={profileDraft.date_of_birth} onChange={(event) => setProfileDraft({ ...profileDraft, date_of_birth: event.target.value })} /></label><button className="premium-btn premium-btn-primary" type="submit" disabled={profileBusy}>{profileBusy ? "Saving…" : "Save Profile"}</button></form>
+                  <form className="production-profile-form" onSubmit={saveProfile}><label>Name *<input value={profileDraft.name} onChange={(event) => setProfileDraft({ ...profileDraft, name: event.target.value })} autoComplete="name" required /></label><label>Email<input value={memberEmail} readOnly disabled /></label><label>Date of Birth *<input type="date" max={new Date().toISOString().slice(0, 10)} value={profileDraft.date_of_birth} onChange={(event) => setProfileDraft({ ...profileDraft, date_of_birth: event.target.value })} required /></label><label>City *<input value={profileDraft.city} onChange={(event) => setProfileDraft({ ...profileDraft, city: event.target.value })} autoComplete="address-level2" required /></label><label>State *<input value={profileDraft.state} onChange={(event) => setProfileDraft({ ...profileDraft, state: event.target.value })} autoComplete="address-level1" required /></label><label>Phone (optional)<input value={profileDraft.phone} onChange={(event) => setProfileDraft({ ...profileDraft, phone: event.target.value })} autoComplete="tel" /></label><button className="premium-btn premium-btn-primary" type="submit" disabled={profileBusy}>{profileBusy ? "Saving…" : "Save Profile"}</button></form>
                 </section>
-
-                {unlockedRecordings.length ? <section className="production-profile-form-card"><div className="premium-profile-section-head"><h2>Unlocked Recordings</h2></div><div className="production-unlocked-list">{unlockedRecordings.map((resource) => <button key={resource.id} onClick={() => { goToTab("audio"); void playTrack(resource); }}><Headphones size={19} /><span>{resource.title}</span><ChevronRight size={18} /></button>)}</div></section> : null}
 
                 <section className="production-account-actions"><button className="production-signout-button" onClick={() => void signOut()}><LogOut size={18} /> Sign Out</button><button className="production-delete-button" onClick={() => void deleteAccount()} disabled={deleteBusy}><Trash2 size={18} /> {deleteBusy ? "Deleting…" : "Delete Account"}</button></section>
               </>
@@ -1037,6 +1014,39 @@ export default function LandingPage() {
         <button className={`tab-item ${activeTab === "video" ? "active" : ""}`} onClick={() => goToTab("video")}><Video size={20} /><span className="tab-label">Video</span></button>
         <button className={`tab-item ${activeTab === "more" ? "active" : ""}`} onClick={() => goToTab("more")}><MoreHorizontal size={20} /><span className="tab-label">More</span></button>
       </nav>
+
+      {protectedTrack ? (
+        <div className="modal-overlay" onClick={() => { setProtectedTrack(null); setKeyDigits(Array(SACRED_KEY_LENGTH).fill("")); }}>
+          <div className="modal-content production-key-modal" onClick={(event) => event.stopPropagation()}>
+            <button className="modal-close" onClick={() => { setProtectedTrack(null); setKeyDigits(Array(SACRED_KEY_LENGTH).fill("")); }} aria-label="Close Sacred Access Key"><X size={16} /></button>
+            <div className="access-key-card">
+              <div className="access-key-header"><span className="key-icon-circle"><Key size={19} /></span><div><h3 className="access-key-title">Sacred Access Key</h3><p className="access-key-desc">Enter the six-digit key shared for this session. You will enter it again the next time you open the recording.</p></div></div>
+              <p className="production-key-track">{protectedTrack.title}</p>
+              <div className="digit-inputs" aria-label="Six-digit Sacred Access Key">
+                {keyDigits.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={(element) => { keyInputRefs.current[index] = element; }}
+                    className="digit-input"
+                    value={digit}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={index === 0 ? SACRED_KEY_LENGTH : 1}
+                    autoComplete={index === 0 ? "one-time-code" : "off"}
+                    aria-label={`Sacred Access Key digit ${index + 1}`}
+                    onChange={(event) => handleKeyDigitChange(index, event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Backspace" && !digit && index > 0) keyInputRefs.current[index - 1]?.focus();
+                      if (event.key === "Enter" && keyDigits.every(Boolean)) void unlockRecording();
+                    }}
+                  />
+                ))}
+              </div>
+              <button className="unlock-btn" disabled={unlockBusy || !keyDigits.every(Boolean)} onClick={() => void unlockRecording()}>{unlockBusy ? "Checking key…" : "Open Recording"}</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {showAuthModal ? (
         <div className="modal-overlay" onClick={() => setShowAuthModal(false)}>
@@ -1129,6 +1139,11 @@ function safeExternalLink(value?: string | null) {
   } catch {
     return null;
   }
+}
+
+function firstName(value?: string | null) {
+  const first = (value || "").trim().split(/\s+/)[0]?.replace(/[^A-Za-z]/g, "") || "";
+  return first ? `${first.slice(0, 1).toUpperCase()}${first.slice(1).toLowerCase()}` : "";
 }
 
 function formatDateTime(value?: string | null) {

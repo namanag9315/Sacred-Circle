@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { isValidSacredAccessKey, normalizeSacredAccessKey, SACRED_KEY_LENGTH } from "@sacred-circle/lib";
 import { Calendar, Clock, Headphones, Pencil, RefreshCw, Search, Trash2, Upload } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { AdminLayout } from "./AdminLayout";
@@ -134,8 +135,8 @@ export function SessionAudioPage() {
 
   async function applyCommonAccessKey() {
     setMessage("");
-    if (!/^\d{4}$/.test(commonAccessKey)) {
-      setMessage("Enter exactly four numbers for the common Sacred Access Key.");
+    if (!isValidSacredAccessKey(commonAccessKey)) {
+      setMessage("Enter exactly six numbers for the common Sacred Access Key.");
       return;
     }
     if (!supabase) {
@@ -149,7 +150,7 @@ export function SessionAudioPage() {
         p_plain_code: commonAccessKey
       });
       if (error) throw error;
-      setMessage(`Sacred Access Key updated for ${Number(data || 0)} locked recordings.`);
+      setMessage(`Sacred Access Key updated for ${Number(data || 0)} protected recordings.`);
       setCommonAccessKey("");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to update the Sacred Access Key.");
@@ -187,8 +188,8 @@ export function SessionAudioPage() {
     }
 
     const accessKey = form.accessKey.trim();
-    if (audioGroup !== "free" && accessKey && !/^\d{4}$/.test(accessKey)) {
-      setMessage("The Sacred Access Key must contain exactly 4 numbers.");
+    if (audioGroup !== "free" && accessKey && !isValidSacredAccessKey(accessKey)) {
+      setMessage("The Sacred Access Key must contain exactly 6 numbers.");
       return;
     }
 
@@ -414,20 +415,21 @@ export function SessionAudioPage() {
         <div>
           <p className="eyebrow">Common access</p>
           <h3>Sacred Access Key</h3>
-          <p>Set one four-digit key for every currently locked Online or Offline Shivir recording.</p>
+          <p>Set one six-digit key for every protected Online or Offline Shivir recording.</p>
         </div>
         <div className="common-key-actions">
           <input
             aria-label="Common Sacred Access Key"
             className="input"
             inputMode="numeric"
-            maxLength={4}
+            maxLength={SACRED_KEY_LENGTH}
+            pattern="[0-9]{6}"
             value={commonAccessKey}
-            onChange={(event) => setCommonAccessKey(event.target.value.replace(/\D/g, "").slice(0, 4))}
-            placeholder="4-digit key"
+            onChange={(event) => setCommonAccessKey(normalizeSacredAccessKey(event.target.value))}
+            placeholder="6-digit key"
           />
-          <button className="button gold" disabled={keyBusy || commonAccessKey.length !== 4} onClick={() => void applyCommonAccessKey()}>
-            {keyBusy ? "Applying..." : "Apply to all locked recordings"}
+          <button className="button gold" disabled={keyBusy || !isValidSacredAccessKey(commonAccessKey)} onClick={() => void applyCommonAccessKey()}>
+            {keyBusy ? "Applying..." : "Apply to all protected recordings"}
           </button>
         </div>
       </section>
@@ -449,7 +451,7 @@ export function SessionAudioPage() {
               <option value="online_shivir">Online Shivir</option>
               <option value="offline_shivir">Offline Shivir</option>
             </select>
-            <small>Unlocked is created automatically for each member after they enter a valid Sacred Access Key.</small>
+            <small>Members enter the Sacred Access Key each time they start a protected recording.</small>
           </label>
           <label>
             Audio or session name
@@ -494,8 +496,8 @@ export function SessionAudioPage() {
                 <input className="input" value={form.zoomLink} onChange={(event) => setForm({ ...form, zoomLink: event.target.value })} placeholder="https://zoom.us/..." />
               </label>
               <label>
-                4-digit Sacred Access Key
-                <input className="input" inputMode="numeric" maxLength={4} value={form.accessKey} onChange={(event) => setForm({ ...form, accessKey: event.target.value.replace(/\D/g, "").slice(0, 4) })} placeholder="Example: 1088" />
+                6-digit Sacred Access Key
+                <input className="input" inputMode="numeric" maxLength={SACRED_KEY_LENGTH} pattern="[0-9]{6}" value={form.accessKey} onChange={(event) => setForm({ ...form, accessKey: normalizeSacredAccessKey(event.target.value) })} placeholder="Example: 108108" />
               </label>
               {sessions.length ? (
                 <label className="full-field">

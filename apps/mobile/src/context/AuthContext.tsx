@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { demoProfile, type Profile, type SessionRegistration, type UserSessionUnlock } from "@sacred-circle/lib";
+import { demoProfile, type Profile, type SessionRegistration } from "@sacred-circle/lib";
 import type { User } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { Platform } from "react-native";
@@ -9,7 +9,6 @@ import {
   deleteMyAccount as deleteAccountFromRepository,
   getProfile,
   listMySessionRegistrations,
-  listMyUnlocks,
   registerForSession,
   unlockSessionRecording,
   updateMyProfile,
@@ -28,13 +27,11 @@ interface AuthContextValue {
   loading: boolean;
   userId: string | null;
   profile: Profile | null;
-  unlocks: UserSessionUnlock[];
   sessionRegistrations: SessionRegistration[];
   authNotice: string;
   signInWithEmail: (input: { name?: string; email: string; password?: string; phone?: string; city?: string }) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   completeSacredKey: (sessionId: string, code: string) => Promise<string>;
-  refreshUnlocks: () => Promise<void>;
   recordSessionJoin: (sessionId: string) => Promise<void>;
   updateProfile: (patch: Partial<Profile>) => Promise<void>;
   deleteMyAccount: () => Promise<void>;
@@ -43,13 +40,12 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 const DEMO_PROFILE = "sacred-circle-demo-profile";
-const DEMO_UNLOCKS = "sacred-circle-demo-unlocks";
+const LEGACY_DEMO_UNLOCKS = "sacred-circle-demo-unlocks";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [unlocks, setUnlocks] = useState<UserSessionUnlock[]>([]);
   const [sessionRegistrations, setSessionRegistrations] = useState<SessionRegistration[]>([]);
   const [authNotice, setAuthNotice] = useState("");
 
@@ -81,16 +77,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!supabase) {
           if (__DEV__) {
             const stored = await AsyncStorage.getItem(DEMO_PROFILE);
-            const storedUnlocks = await AsyncStorage.getItem(DEMO_UNLOCKS);
             if (stored && mounted) {
               const parsed = JSON.parse(stored) as Profile;
               setUserId(parsed.id);
               setProfile(parsed);
-              setUnlocks(storedUnlocks ? JSON.parse(storedUnlocks) : []);
               setSessionRegistrations([]);
             }
           } else {
-            await AsyncStorage.multiRemove([DEMO_PROFILE, DEMO_UNLOCKS]);
+            await AsyncStorage.multiRemove([DEMO_PROFILE, LEGACY_DEMO_UNLOCKS]);
           }
           if (mounted) setLoading(false);
           return;
@@ -105,7 +99,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (mounted) {
             setUserId(authUser.id);
             setProfile(loadedProfile);
-            setUnlocks(await listMyUnlocks(authUser.id));
             setSessionRegistrations(await listMySessionRegistrations(authUser.id));
           }
         }
@@ -122,13 +115,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUserId(authUser?.id || null);
       if (!authUser) {
         setProfile(null);
-        setUnlocks([]);
         setSessionRegistrations([]);
         return;
       }
       const loadedProfile = await syncAuthUser(authUser);
       setProfile(loadedProfile);
-      setUnlocks(await listMyUnlocks(authUser.id));
       setSessionRegistrations(await listMySessionRegistrations(authUser.id));
     });
 
@@ -142,7 +133,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     userId,
     profile,
-    unlocks,
     sessionRegistrations,
     authNotice,
     async signInWithEmail(input) {
@@ -158,10 +148,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           date_of_birth: ""
         };
         await AsyncStorage.setItem(DEMO_PROFILE, JSON.stringify(nextProfile));
-        await AsyncStorage.setItem(DEMO_UNLOCKS, JSON.stringify([]));
         setUserId(nextProfile.id);
         setProfile(nextProfile);
-        setUnlocks([]);
         setSessionRegistrations([]);
         return;
       }
@@ -197,10 +185,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           date_of_birth: ""
         };
         await AsyncStorage.setItem(DEMO_PROFILE, JSON.stringify(nextProfile));
-        await AsyncStorage.setItem(DEMO_UNLOCKS, JSON.stringify([]));
         setUserId(nextProfile.id);
         setProfile(nextProfile);
-        setUnlocks([]);
         setSessionRegistrations([]);
         return;
       }
@@ -251,25 +237,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error("Unable to complete Google sign in.");
     },
     async completeSacredKey(sessionId, code) {
-      const result = await unlockSessionRecording(sessionId, code);
-      if (!supabase && result === "unlocked" && profile) {
-        const nextUnlock: UserSessionUnlock = {
-          id: "demo-unlock-" + Date.now(),
-          user_id: profile.id,
-          session_id: sessionId,
-          unlocked_at: new Date().toISOString()
-        };
-        const nextUnlocks = [...unlocks.filter((unlock) => unlock.session_id !== sessionId), nextUnlock];
-        await AsyncStorage.setItem(DEMO_UNLOCKS, JSON.stringify(nextUnlocks));
-        setUnlocks(nextUnlocks);
-      } else if (supabase && userId && (result === "unlocked" || result === "already_unlocked")) {
-        setUnlocks(await listMyUnlocks(userId));
-      }
-      return result;
-    },
-    async refreshUnlocks() {
-      if (!userId) return;
-      setUnlocks(await listMyUnlocks(userId));
+      return unlockSessionRecording(sessionId, code);
     },
     async recordSessionJoin(sessionId) {
       if (!userId) return;
@@ -317,27 +285,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!supabase) {
         if (!__DEV__) throw new Error("Sacred Circle account service is not configured.");
         await AsyncStorage.removeItem(DEMO_PROFILE);
-        await AsyncStorage.removeItem(DEMO_UNLOCKS);
+        await AsyncStorage.removeItem(LEGACY_DEMO_UNLOCKS);
       } else {
         await deleteAccountFromRepository();
       }
       setUserId(null);
       setProfile(null);
-      setUnlocks([]);
       setSessionRegistrations([]);
       setAuthNotice("");
     },
     async signOut() {
       await AsyncStorage.removeItem(DEMO_PROFILE);
-      await AsyncStorage.removeItem(DEMO_UNLOCKS);
+      await AsyncStorage.removeItem(LEGACY_DEMO_UNLOCKS);
       await supabase?.auth.signOut();
       setUserId(null);
       setProfile(null);
-      setUnlocks([]);
       setSessionRegistrations([]);
       setAuthNotice("");
     }
-  }), [loading, userId, profile, unlocks, sessionRegistrations, authNotice]);
+  }), [loading, userId, profile, sessionRegistrations, authNotice]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -2749,7 +2749,7 @@
   bottom: 18px;
   z-index: 5;
   display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
+  grid-template-columns: 1fr;
   gap: 13px;
 }
 
@@ -2884,11 +2884,6 @@
   color: white;
   border-color: #071733;
   box-shadow: 0 10px 22px rgba(7, 23, 51, 0.2);
-}
-
-.premium-btn-secondary {
-  color: var(--premium-gold);
-  background: rgba(255,255,255,0.8);
 }
 
 .premium-session-art {
@@ -6068,6 +6063,44 @@
 .production-access-card .digit-input {
   width: 48px;
   height: 52px;
+}
+
+.production-key-modal .access-key-card {
+  padding: 8px 0 0;
+  gap: 18px;
+}
+
+.production-key-modal .access-key-title {
+  font-size: 22px;
+}
+
+.production-key-modal .access-key-desc {
+  max-width: 360px;
+  font-size: 13px;
+}
+
+.production-key-track {
+  margin: 0;
+  color: var(--navy);
+  font-family: var(--font-serif);
+  font-size: 18px;
+  text-align: center;
+}
+
+.production-key-modal .digit-input {
+  width: 46px;
+  height: 52px;
+}
+
+@media (max-width: 380px) {
+  .production-key-modal .digit-inputs {
+    gap: 4px;
+  }
+
+  .production-key-modal .digit-input {
+    width: 40px;
+    height: 48px;
+  }
 }
 
 .production-library-controls {
