@@ -234,7 +234,7 @@ export function AppNavigator() {
   return (
     <SafeAreaProvider>
       <NavigationContainer theme={theme} documentTitle={{ formatter: () => "Sacred Circle" }}>
-        {previewOnboarding || previewAuth || oauthReturn || (!userId && !previewApp) ? (
+        {previewOnboarding || previewAuth || (oauthReturn && !userId) || (!userId && !previewApp) ? (
           <Stack.Navigator initialRouteName={previewAuth || oauthReturn ? "Auth" : "Onboarding"} screenOptions={{ headerShown: false }}>
             <Stack.Screen name="Onboarding" component={OnboardingScreen} />
             <Stack.Screen name="Auth" component={AuthScreen} />
