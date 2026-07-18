@@ -1,0 +1,17 @@
+node_modules
+.git
+.expo
+.vercel
+**/.next
+**/dist
+**/build
+coverage
+releases
+*.apk
+test-results
+.DS_Store
+.env
+.env.local
+.env.*.local
+*.tsbuildinfo
+
