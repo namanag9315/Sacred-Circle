@@ -17,10 +17,10 @@ const mobileDir = join(repoRoot, "apps", "mobile");
 const distDir = join(mobileDir, "dist");
 const publicDir = join(mobileDir, "public");
 const starterAsset = join(mobileDir, "src", "assets", "starter", "starter-background.png");
-const flameAsset = join(mobileDir, "src", "assets", "starter", "sacred-flame-logo-optimized.png");
+const appIconAsset = join(mobileDir, "src", "assets", "branding", "app-icon.png");
 const indexPath = join(distDir, "index.html");
 
-const requiredFiles = [indexPath, starterAsset, flameAsset];
+const requiredFiles = [indexPath, starterAsset, appIconAsset];
 for (const path of requiredFiles) {
   if (!existsSync(path)) {
     throw new Error(`Mobile web preparation is missing ${relative(repoRoot, path)}.`);
@@ -43,9 +43,9 @@ const manifest = {
   background_color: "#FFF9F0",
   categories: ["health", "lifestyle", "education"],
   icons: [
-    { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-    { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-    { src: "/icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
+    { src: "/icons/sacred-circle-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+    { src: "/icons/sacred-circle-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+    { src: "/icons/sacred-circle-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
   ],
   prefer_related_applications: false
 };
@@ -81,6 +81,14 @@ html = html.replace(
   '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />'
 );
 html = html.replace(/<title>[^<]*<\/title>/, "<title>Sacred Circle</title>");
+html = html.replace(
+  /<link rel="icon" href="\/favicon\.ico"\s*\/?>/,
+  [
+    '<link rel="icon" type="image/png" sizes="32x32" href="/icons/sacred-circle-32.png" />',
+    '  <link rel="icon" type="image/png" sizes="16x16" href="/icons/sacred-circle-16.png" />',
+    '  <link rel="shortcut icon" href="/icons/sacred-circle-32.png" />'
+  ].join("\n")
+);
 
 const startupLinks = startupImages.map((image) => {
   const filename = startupFilename(image);
@@ -100,8 +108,8 @@ const headMarkup = [
   '  <meta name="apple-mobile-web-app-status-bar-style" content="default" />',
   '  <meta name="format-detection" content="telephone=no, address=no, email=no" />',
   '  <link rel="manifest" href="/manifest.json" />',
-  '  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180.png" />',
-  '  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />',
+  '  <link rel="apple-touch-icon" sizes="180x180" href="/icons/sacred-circle-180.png" />',
+  '  <link rel="icon" type="image/png" sizes="192x192" href="/icons/sacred-circle-192.png" />',
   ...startupLinks,
   "<!-- /Sacred Circle PWA -->"
 ].join("\n");
@@ -205,15 +213,17 @@ async function generateIcons(outputDir) {
   const iconDir = join(outputDir, "icons");
   mkdirSync(iconDir, { recursive: true });
   await Promise.all([
-    renderOpaqueWebIcon(join(iconDir, "apple-touch-icon-180.png"), 180),
-    renderOpaqueWebIcon(join(iconDir, "icon-192.png"), 192),
-    renderOpaqueWebIcon(join(iconDir, "icon-512.png"), 512),
-    renderMaskableWebIcon(join(iconDir, "icon-maskable-512.png"), 512)
+    renderOpaqueWebIcon(join(iconDir, "sacred-circle-16.png"), 16),
+    renderOpaqueWebIcon(join(iconDir, "sacred-circle-32.png"), 32),
+    renderOpaqueWebIcon(join(iconDir, "sacred-circle-180.png"), 180),
+    renderOpaqueWebIcon(join(iconDir, "sacred-circle-192.png"), 192),
+    renderOpaqueWebIcon(join(iconDir, "sacred-circle-512.png"), 512),
+    renderMaskableWebIcon(join(iconDir, "sacred-circle-maskable-512.png"), 512)
   ]);
 }
 
 async function renderOpaqueWebIcon(destination, size) {
-  await sharp(flameAsset)
+  await sharp(appIconAsset)
     .resize(size, size, { fit: "cover" })
     .flatten({ background: "#FFF9F0" })
     .png({ compressionLevel: 9, palette: true })
@@ -225,7 +235,7 @@ async function renderMaskableWebIcon(destination, size) {
   const mask = Buffer.from(
     `<svg width="${logoSize}" height="${logoSize}"><circle cx="${logoSize / 2}" cy="${logoSize / 2}" r="${logoSize / 2}" fill="#fff" /></svg>`
   );
-  const logo = await sharp(flameAsset)
+  const logo = await sharp(appIconAsset)
     .resize(logoSize, logoSize, { fit: "cover" })
     .composite([{ input: mask, blend: "dest-in" }])
     .png({ compressionLevel: 9 })
