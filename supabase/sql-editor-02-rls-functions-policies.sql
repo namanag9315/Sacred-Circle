@@ -30,8 +30,14 @@ security definer
 set search_path = public
 as $$
   select exists (
-    select 1 from public.profiles
-    where id = check_user and role = 'admin'
+    select 1
+    from public.profiles profile
+    join auth.users auth_user on auth_user.id = profile.id
+    where profile.id = check_user
+      and profile.role = 'admin'
+      and lower(profile.email) = 'sacredcircle45@gmail.com'
+      and lower(coalesce(auth_user.email, '')) = 'sacredcircle45@gmail.com'
+      and auth_user.email_confirmed_at is not null
   );
 $$;
 

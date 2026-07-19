@@ -165,17 +165,15 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
   users: {
     title: "Users",
     eyebrow: "Access",
-    description: "Search users, update minimal profile details, and change role only when needed.",
+    description: "Search members and update basic profile details. Administrator access is fixed to the official Sacred Circle account.",
     table: "profiles",
     columns: ["name", "email", "phone", "city", "state", "date_of_birth", "role"],
     fields: [
       { key: "name", label: "Name", type: "text" },
-      { key: "email", label: "Email", type: "text" },
       { key: "phone", label: "Phone", type: "text" },
       { key: "city", label: "City", type: "text" },
       { key: "state", label: "State", type: "text" },
-      { key: "date_of_birth", label: "Date of Birth", type: "text", helper: "Use YYYY-MM-DD." },
-      { key: "role", label: "Role", type: "select", options: ["user", "admin"] }
+      { key: "date_of_birth", label: "Date of Birth", type: "text", helper: "Use YYYY-MM-DD." }
     ],
     demoRows: []
   },

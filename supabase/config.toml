@@ -25,7 +25,7 @@ sql_paths = ["./seed.sql"]
 [auth]
 enabled = true
 site_url = "https://sacred-circle-app.vercel.app"
-additional_redirect_urls = ["https://sacred-circle-app.vercel.app/**", "https://*-namanag9315s-projects.vercel.app/**", "http://localhost:8081/**", "http://localhost:8082/**", "http://127.0.0.1:8081/**", "http://127.0.0.1:8082/**", "http://127.0.0.1:3000/**", "sacredcircle://auth/callback"]
+additional_redirect_urls = ["https://sacred-circle-app.vercel.app/**", "https://admin-lemon-sigma.vercel.app/**", "https://*-namanag9315s-projects.vercel.app/**", "http://localhost:8081/**", "http://localhost:8082/**", "http://127.0.0.1:8081/**", "http://127.0.0.1:8082/**", "http://127.0.0.1:3000/**", "sacredcircle://auth/callback"]
 jwt_expiry = 3600
 enable_signup = true
 enable_anonymous_sign_ins = false

@@ -36,9 +36,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
 async function main() {
   console.log("Simulating sign-in for client...");
   
-  // 1. Sign in with the confirmed admin user
-  const email = 'admin@sacredcircle.com';
-  const password = 'admin123';
+  // 1. Sign in with explicitly supplied test credentials. Never commit them.
+  const email = process.env.SACRED_CIRCLE_TEST_ADMIN_EMAIL;
+  const password = process.env.SACRED_CIRCLE_TEST_ADMIN_PASSWORD;
+  if (!email || !password) {
+    throw new Error("SACRED_CIRCLE_TEST_ADMIN_EMAIL and SACRED_CIRCLE_TEST_ADMIN_PASSWORD are required.");
+  }
   
   // Try logging in
   console.log("Signing in test user:", email);
