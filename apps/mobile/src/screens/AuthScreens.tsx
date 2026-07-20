@@ -1,25 +1,19 @@
 import { createElement, useEffect, useRef, useState, type ReactNode } from "react";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Animated, Image, ImageBackground, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { MotiView } from "moti";
 import { ArrowRight, CalendarDays, Flower2, Headphones, KeyRound, LockKeyhole, Mail, ShieldCheck } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path } from "react-native-svg";
 import {
   AppLogoHeader,
   LoadingState,
-  OnboardingHeroImage,
-  PrimaryButton,
   Screen
 } from "../components/Sacred";
 import { FadeUp } from "../components/Motion";
 import { useAuth } from "../context/AuthContext";
 import { colors } from "../theme";
-import sanctuaryArch from "../assets/reference/sanctuary-arch-optimized.jpg";
 import templeLake from "../assets/reference/temple-lake-sunrise-optimized.jpg";
 import sacredLogo from "../assets/starter/sacred-flame-logo-optimized.png";
-
-const disclaimer = "Sacred Circle is a wellness and meditation app.\nIt does not replace professional medical advice or treatment.";
 
 export function SplashScreenView() {
   const fade = useRef(new Animated.Value(0)).current;
@@ -33,64 +27,6 @@ export function SplashScreenView() {
       <Animated.View style={[local.splash, { opacity: fade }]}>
         <AppLogoHeader centered compact />
       </Animated.View>
-    </Screen>
-  );
-}
-
-const slides = [
-  {
-    title: "Enter Your\nSacred Space",
-    body: "A calm sanctuary for meditation, healing,\nspiritual wisdom, and inner peace."
-  },
-  {
-    title: "Join Sunday\nSessions",
-    body: "Meet online through Zoom every Sunday for\nmeditation, healing, and shared wisdom."
-  },
-  {
-    title: "Unlock Session\nRecordings",
-    body: "Enter the Sacred Access Key shared live to\nunlock that session's healing audio."
-  }
-];
-
-export function OnboardingScreen({ navigation }: any) {
-  const [index, setIndex] = useState(0);
-  const slide = slides[index];
-
-  function next() {
-    if (index === slides.length - 1) navigation.navigate("Auth");
-    else setIndex(index + 1);
-  }
-
-  return (
-    <Screen contentStyle={local.onboardingContent}>
-      <AppLogoHeader centered compact />
-      <OnboardingHeroImage source={sanctuaryArch} />
-      <FadeUp delay={260} style={local.centeredBlock}>
-        <GoldDivider />
-        <Text style={local.onboardingTitle}>{slide.title}</Text>
-        <Text style={local.onboardingBody}>{slide.body}</Text>
-      </FadeUp>
-      <View style={local.dots}>{slides.map((_, dot) => (
-        <MotiView
-          key={dot}
-          animate={{
-            scale: dot === index ? 1.18 : 1,
-            opacity: dot === index ? 1 : 0.34,
-            backgroundColor: dot === index ? colors.gold : "rgba(17,29,58,0.14)"
-          }}
-          transition={{ type: "timing", duration: 260 }}
-          style={local.dot}
-        />
-      ))}</View>
-      <Text style={local.stepText}>{index + 1} of {slides.length}</Text>
-      <PrimaryButton label={index === slides.length - 1 ? "Begin" : "Continue"} icon={<ArrowRight color="#FFFFFF" size={18} />} onPress={next} style={local.onboardingButton} />
-      <Pressable onPress={() => navigation.navigate("Auth")} style={local.skipButton}>
-        <Text style={local.skipText}>Skip</Text>
-      </Pressable>
-      <View style={local.disclaimerRow}>
-        <ShieldCheck color={colors.goldSoft} size={18} />
-        <Text style={local.disclaimer}>{disclaimer}</Text>
-      </View>
     </Screen>
   );
 }
@@ -528,16 +464,6 @@ function AuthFeature({ icon, title, body }: { icon: ReactNode; title: string; bo
   );
 }
 
-function GoldDivider() {
-  return (
-    <View style={local.goldDivider}>
-      <View style={local.dividerLine} />
-      <View style={local.dividerDiamond} />
-      <View style={local.dividerLine} />
-    </View>
-  );
-}
-
 const local = StyleSheet.create({
   splash: { alignItems: "center" },
   authScene: { flex: 1, width: "100%", maxWidth: "100%", overflow: "hidden", backgroundColor: "#FFF9F0" },
@@ -602,22 +528,6 @@ const local = StyleSheet.create({
   profileDateDoneButton: { alignSelf: "flex-end", paddingHorizontal: 18, paddingVertical: 10 },
   profileDateDoneText: { color: colors.warning, fontSize: 15, fontWeight: "900" },
   profileDateWebShell: { minHeight: 52, borderRadius: 15, borderWidth: 1, borderColor: "rgba(201,147,50,0.22)", backgroundColor: "#FFFFFF", paddingHorizontal: 15, flexDirection: "row", alignItems: "center", gap: 12 },
-  onboardingContent: { alignItems: "center", paddingTop: 64, paddingBottom: 34 },
-  centeredBlock: { alignItems: "center", width: "100%" },
-  onboardingTitle: { color: colors.navy, fontFamily: "Georgia", fontSize: 38, lineHeight: 45, textAlign: "center", marginTop: 12 },
-  goldDivider: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 24, marginBottom: 20 },
-  dividerLine: { width: 74, height: 1.5, backgroundColor: colors.gold },
-  dividerDiamond: { width: 10, height: 10, backgroundColor: colors.goldSoft, transform: [{ rotate: "45deg" }] },
-  onboardingBody: { color: colors.bodyDark, fontSize: 16, lineHeight: 25, textAlign: "center", marginTop: 24, maxWidth: 290 },
-  dots: { flexDirection: "row", gap: 14, marginTop: 34, marginBottom: 18 },
-  dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: "rgba(17,29,58,0.13)" },
-  dotActive: { backgroundColor: colors.gold },
-  stepText: { color: colors.bodyDark, fontSize: 15, marginBottom: 34 },
-  onboardingButton: { width: "100%", maxWidth: 284, minHeight: 58, borderRadius: 18 },
-  skipButton: { paddingVertical: 22 },
-  skipText: { color: colors.navy, fontSize: 17, fontWeight: "800" },
-  disclaimerRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 28, maxWidth: 300 },
-  disclaimer: { color: colors.body, fontSize: 11, lineHeight: 18, textAlign: "left", flex: 1 },
   authContent: { paddingTop: 60, paddingBottom: 108, alignItems: "center" },
   authContentSignup: { paddingTop: 46 },
   authWelcome: { alignItems: "center", marginTop: 42, marginBottom: 24, zIndex: 2 },

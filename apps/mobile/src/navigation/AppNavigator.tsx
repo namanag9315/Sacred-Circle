@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -8,7 +9,8 @@ import { Flower2, Grid2X2, Headphones, Home, Video as VideoIcon } from "lucide-r
 import { LoadingState } from "../components/Sacred";
 import { ActiveTabMotion } from "../components/Motion";
 import { useAuth } from "../context/AuthContext";
-import { AuthScreen, OnboardingScreen, ProfileSetupScreen, SplashScreenView } from "../screens/AuthScreens";
+import { AuthScreen, ProfileSetupScreen, SplashScreenView } from "../screens/AuthScreens";
+import { FirstTimeOnboardingScreen } from "../screens/FirstTimeOnboardingScreen";
 import { SacredStarterScreen } from "../screens/SacredStarterScreen";
 import {
   AboutScreen,
@@ -35,6 +37,7 @@ import { hasOAuthCallbackInUrl, shouldBypassStarterForOAuth } from "../lib/authR
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+const FIRST_TIME_ONBOARDING_KEY = "@sacred-circle/first-time-onboarding-2026-v1";
 
 const theme = {
   ...DefaultTheme,
@@ -212,6 +215,7 @@ export function AppNavigator() {
   const [splashDone, setSplashDone] = useState(false);
   const [oauthReturn] = useState(shouldBypassStarterForOAuth);
   const [starterDone, setStarterDone] = useState(oauthReturn);
+  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
   const previewMode =
     Platform.OS === "web" && typeof window !== "undefined" && window.location.hostname === "localhost"
       ? new URLSearchParams(window.location.search).get("preview")
@@ -226,18 +230,40 @@ export function AppNavigator() {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem(FIRST_TIME_ONBOARDING_KEY)
+      .then((value) => {
+        if (active) setOnboardingComplete(value === "complete");
+      })
+      .catch(() => {
+        if (active) setOnboardingComplete(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function completeFirstTimeOnboarding() {
+    await AsyncStorage.setItem(FIRST_TIME_ONBOARDING_KEY, "complete");
+    setOnboardingComplete(true);
+  }
+
   if (!splashDone) return <SplashScreenView />;
   if (!starterDone && !previewAuth && !previewOnboarding) return <SacredStarterScreen onFinish={() => setStarterDone(true)} />;
   if (loading && (!previewApp || hasOAuthCallback || oauthReturn)) return <LoadingState />;
   if (userId && !profile) return <LoadingState />;
   if (userId && profile && !isProfileComplete(profile)) return <ProfileSetupScreen />;
+  if (!userId && !previewApp && !previewAuth && !previewOnboarding && !oauthReturn && onboardingComplete === null) return <LoadingState />;
 
   return (
     <SafeAreaProvider>
       <NavigationContainer theme={theme} documentTitle={{ formatter: () => "Sacred Circle" }}>
         {previewOnboarding || previewAuth || (oauthReturn && !userId) || (!userId && !previewApp) ? (
-          <Stack.Navigator initialRouteName={previewAuth || oauthReturn ? "Auth" : "Onboarding"} screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          <Stack.Navigator initialRouteName={previewOnboarding ? "Onboarding" : previewAuth || oauthReturn || onboardingComplete ? "Auth" : "Onboarding"} screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Onboarding">
+              {(props) => <FirstTimeOnboardingScreen {...props} onComplete={completeFirstTimeOnboarding} />}
+            </Stack.Screen>
             <Stack.Screen name="Auth" component={AuthScreen} />
           </Stack.Navigator>
         ) : (
