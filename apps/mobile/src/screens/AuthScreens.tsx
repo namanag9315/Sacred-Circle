@@ -3,6 +3,7 @@ import DateTimePicker, { type DateTimePickerEvent } from "@react-native-communit
 import { Animated, Image, ImageBackground, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { ArrowRight, CalendarDays, Flower2, Headphones, KeyRound, LockKeyhole, Mail, ShieldCheck } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Linking from "expo-linking";
 import Svg, { Path } from "react-native-svg";
 import {
   AppLogoHeader,
@@ -14,6 +15,8 @@ import { useAuth } from "../context/AuthContext";
 import { colors } from "../theme";
 import templeLake from "../assets/reference/temple-lake-sunrise-optimized.jpg";
 import sacredLogo from "../assets/starter/sacred-flame-logo-optimized.png";
+
+const PUBLIC_LEGAL_BASE_URL = "https://sacred-circle-app.vercel.app";
 
 export function SplashScreenView() {
   const fade = useRef(new Animated.Value(0)).current;
@@ -140,7 +143,7 @@ export function AuthScreen() {
               </View>
               <View style={local.referencePrivacyCopy}>
                 <Text style={local.referencePrivacyTitle}>Your privacy is our priority</Text>
-                <Text style={local.referencePrivacyText}>We never share your information. All data is encrypted and secure.</Text>
+                <Text style={local.referencePrivacyText}>We use your information only to provide and protect Sacred Circle services. Review our Privacy Policy for details.</Text>
               </View>
             </View>
 
@@ -160,7 +163,7 @@ export function AuthScreen() {
 
           <View style={local.referenceTerms}>
             <LockKeyhole color={colors.gold} size={18} strokeWidth={1.8} />
-            <Text style={local.referenceTermsText}>By continuing, you agree to our <Text style={local.referenceCreateGold}>Terms of Service</Text> and <Text style={local.referenceCreateGold}>Privacy Policy</Text>.</Text>
+            <Text style={local.referenceTermsText}>By continuing, you agree to our <Text accessibilityRole="link" onPress={() => void Linking.openURL(`${PUBLIC_LEGAL_BASE_URL}/terms-of-use`)} style={local.referenceCreateGold}>Terms of Use</Text> and acknowledge our <Text accessibilityRole="link" onPress={() => void Linking.openURL(`${PUBLIC_LEGAL_BASE_URL}/privacy-policy`)} style={local.referenceCreateGold}>Privacy Policy</Text>.</Text>
           </View>
         </ScrollView>
       </ImageBackground>

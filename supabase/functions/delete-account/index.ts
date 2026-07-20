@@ -33,6 +33,18 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false }
     });
+
+    // These records use ON DELETE SET NULL so they must be removed before the
+    // auth user is deleted; otherwise personal event and support details would
+    // remain without an account reference.
+    for (const table of ["event_registrations", "contact_submissions"]) {
+      const { error: relatedDeleteError } = await adminClient
+        .from(table)
+        .delete()
+        .eq("user_id", user.id);
+      if (relatedDeleteError) throw relatedDeleteError;
+    }
+
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
     if (deleteError) throw deleteError;
 

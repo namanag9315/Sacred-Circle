@@ -830,6 +830,7 @@ export function MoreScreen({ navigation }: any) {
     ["Resources", <BookOpen color={colors.navy} size={18} />, () => navigateApp(navigation, "Resources")],
     ["Shivir Information", <CalendarDays color={colors.navy} size={18} />, () => navigateApp(navigation, "Events")],
     ["About Sacred Circle", <Info color={colors.navy} size={18} />, () => navigateApp(navigation, "About")],
+    ["Legal, Privacy & Safety", <BookOpen color={colors.navy} size={18} />, () => navigateApp(navigation, "Legal")],
     ["Contact", <Mail color={colors.navy} size={18} />, () => navigateApp(navigation, "Contact")],
     ["Help & Support", <HelpCircle color={colors.navy} size={18} />, () => navigateApp(navigation, "Help")]
   ] as const;
@@ -859,13 +860,6 @@ export function MoreScreen({ navigation }: any) {
         {contentRows.map(([label, icon, action]) => <MoreRow key={label} label={label} icon={icon} onPress={action} />)}
         {!isPlaceholderUrl(whatsappUrl) ? <MoreRow label="WhatsApp Group" icon={<Grid2X2 color={colors.navy} size={18} />} onPress={() => openUrl(whatsappUrl)} /> : null}
       </PremiumCard>
-      <View style={premium.blessingCard}>
-        <Image source={omMandala} resizeMode="contain" style={premium.blessingOm} />
-        <View>
-          <Text style={premium.blessingTitle}>Jai Gurudev</Text>
-          <Text style={premium.blessingText}>Thank you for being a part of this sacred journey.</Text>
-        </View>
-      </View>
       <Pressable onPress={logout} style={premium.logoutButton}>
         <Text style={premium.logoutText}>Logout</Text>
       </Pressable>
@@ -875,7 +869,6 @@ export function MoreScreen({ navigation }: any) {
 
 export function ProfileScreen({ navigation }: any) {
   const { profile, updateProfile, deleteMyAccount, signOut } = useAuth();
-  const { settings } = usePremiumData();
   const { width, fontScale } = useWindowDimensions();
   const compactLayout = width < 380 || fontScale > 1.15;
   const [editing, setEditing] = useState(false);
@@ -1012,8 +1005,9 @@ export function ProfileScreen({ navigation }: any) {
         <MoreRow label="Audio Library" icon={<Headphones color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "Audio")} />
         <MoreRow label="Sacred Access Key" icon={<LockKeyhole color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "Sessions")} />
         <MoreRow label="Contact and Help" icon={<HelpCircle color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "Help")} />
-        {settings.privacy_policy ? <MoreRow label="Privacy Policy" icon={<Info color={colors.navy} size={19} />} onPress={() => Alert.alert("Privacy Policy", settings.privacy_policy)} /> : null}
-        {settings.terms_text ? <MoreRow label="Terms" icon={<BookOpen color={colors.navy} size={19} />} onPress={() => Alert.alert("Terms", settings.terms_text)} /> : null}
+        <MoreRow label="Privacy Policy" icon={<Info color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "PrivacyPolicy")} />
+        <MoreRow label="Terms of Use" icon={<BookOpen color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "TermsOfUse")} />
+        <MoreRow label="Account & Data Deletion" icon={<LockKeyhole color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "AccountDeletion")} />
       </PremiumCard>
 
       {profile ? (
@@ -1737,10 +1731,6 @@ const premium = StyleSheet.create({
   deleteAccountButton: { minHeight: 48, marginTop: 4, borderRadius: 12, borderWidth: 1, borderColor: colors.danger, alignItems: "center", justifyContent: "center" },
   deleteAccountButtonDisabled: { opacity: 0.55 },
   deleteAccountText: { color: colors.danger, fontSize: 13, fontWeight: "900" },
-  blessingCard: { minHeight: 116, borderRadius: 18, backgroundColor: colors.navy, overflow: "hidden", padding: 18, flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 14 },
-  blessingOm: { width: 82, height: 82, opacity: 0.92 },
-  blessingTitle: { color: colors.goldSoft, fontFamily: "Georgia", fontSize: 20, lineHeight: 25 },
-  blessingText: { color: "#FFFFFF", fontSize: 13, lineHeight: 19, marginTop: 5, maxWidth: 210 },
   logoutButton: { minHeight: 52, alignItems: "center", justifyContent: "center" },
   logoutText: { color: colors.danger, fontWeight: "900" },
   profileHero: { height: 264, marginHorizontal: 0, justifyContent: "flex-end", paddingHorizontal: 22, paddingBottom: 22, marginBottom: 16, borderRadius: 30, overflow: "hidden", borderWidth: 1, borderColor: colors.goldBorder, backgroundColor: colors.navy, ...shadows.soft },

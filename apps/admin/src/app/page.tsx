@@ -25,8 +25,10 @@ import {
   CheckCircle,
   ChevronRight,
   Clock,
+  FileText,
   Headphones,
   Home,
+  Info,
   Key,
   Lock,
   LogOut,
@@ -997,13 +999,17 @@ export default function LandingPage() {
             </section>
 
             {(safeExternalLink(settings.whatsapp_group_url) || settings.contact_email) ? <section className="premium-more-list production-link-list">{safeExternalLink(settings.whatsapp_group_url) ? <a className="premium-more-row" href={settings.whatsapp_group_url} target="_blank" rel="noreferrer"><span><Key size={18} /></span><strong>WhatsApp Community</strong><ChevronRight size={18} /></a> : null}{settings.contact_email ? <a className="premium-more-row" href={`mailto:${settings.contact_email}`}><span><Mail size={18} /></span><strong>Contact Sacred Circle</strong><ChevronRight size={18} /></a> : null}</section> : null}
-
-            <section className="premium-blessing-card"><img src="/landing-om-mandala.png" alt="" /><div><h2>Jai Gurudev</h2><p>Thank you for being a part of this sacred journey.</p></div></section>
+            <section className="premium-more-list production-link-list">
+              <a className="premium-more-row" href="https://sacred-circle-app.vercel.app/about-sacred-circle" target="_blank" rel="noreferrer"><span><Info size={18} /></span><strong>About Sacred Circle</strong><ChevronRight size={18} /></a>
+              <a className="premium-more-row" href="https://sacred-circle-app.vercel.app/privacy-policy" target="_blank" rel="noreferrer"><span><Lock size={18} /></span><strong>Privacy Policy</strong><ChevronRight size={18} /></a>
+              <a className="premium-more-row" href="https://sacred-circle-app.vercel.app/terms-of-use" target="_blank" rel="noreferrer"><span><FileText size={18} /></span><strong>Terms of Use</strong><ChevronRight size={18} /></a>
+              <a className="premium-more-row" href="https://sacred-circle-app.vercel.app/account-deletion" target="_blank" rel="noreferrer"><span><Trash2 size={18} /></span><strong>Account & Data Deletion</strong><ChevronRight size={18} /></a>
+            </section>
           </div>
         ) : null}
 
         {!dataLoading && activeTab !== "more" ? (
-          <footer className="landing-footer"><div className="footer-brand"><img src="/sacred-circle-logo.png" alt="Sacred Circle" className="footer-logo" /><span className="footer-brand-text">Sacred Circle</span></div><div className="footer-links">{settings.contact_email ? <a href={`mailto:${settings.contact_email}`} className="footer-link">Contact</a> : null}{safeExternalLink(settings.whatsapp_group_url) ? <><span className="footer-dot">•</span><a href={settings.whatsapp_group_url} target="_blank" rel="noreferrer" className="footer-link">WhatsApp</a></> : null}</div><p className="footer-copy">© {currentYear} Sacred Circle</p></footer>
+          <footer className="landing-footer"><div className="footer-brand"><img src="/sacred-circle-logo.png" alt="Sacred Circle" className="footer-logo" /><span className="footer-brand-text">Sacred Circle</span></div><div className="footer-links">{settings.contact_email ? <a href={`mailto:${settings.contact_email}`} className="footer-link">Contact</a> : null}<a href="https://sacred-circle-app.vercel.app/privacy-policy" className="footer-link">Privacy</a><a href="https://sacred-circle-app.vercel.app/terms-of-use" className="footer-link">Terms</a>{safeExternalLink(settings.whatsapp_group_url) ? <><span className="footer-dot">•</span><a href={settings.whatsapp_group_url} target="_blank" rel="noreferrer" className="footer-link">WhatsApp</a></> : null}</div><p className="footer-copy">© {currentYear} Sacred Circle</p></footer>
         ) : null}
         </div>
       </div>

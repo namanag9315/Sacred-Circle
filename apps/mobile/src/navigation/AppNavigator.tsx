@@ -13,16 +13,21 @@ import { AuthScreen, ProfileSetupScreen, SplashScreenView } from "../screens/Aut
 import { FirstTimeOnboardingScreen } from "../screens/FirstTimeOnboardingScreen";
 import { SacredStarterScreen } from "../screens/SacredStarterScreen";
 import {
+  AccountDeletionScreen,
   AboutScreen,
   AudioPlayerScreen,
   ContactScreen,
   EventDetailScreen,
   EventsListScreen,
   HelpScreen,
+  LegalScreen,
+  PrivacyPolicyScreen,
   ProgramDetailScreen,
   ProgramsListScreen,
   ResourcesScreen,
   SessionDetailScreen,
+  TermsOfUseScreen,
+  WellnessDisclaimerScreen,
 } from "../screens/MainScreens";
 import {
   HomeScreen,
@@ -133,6 +138,11 @@ function AppStack() {
       <Stack.Screen name="EventDetail" component={EventDetailScreen} options={{ title: "Event" }} />
       <Stack.Screen name="Videos" component={VideosListScreen} options={{ headerShown: false }} />
       <Stack.Screen name="About" component={AboutScreen} options={{ title: "About" }} />
+      <Stack.Screen name="Legal" component={LegalScreen} options={{ title: "Legal, Privacy & Safety" }} />
+      <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: "Privacy Policy" }} />
+      <Stack.Screen name="TermsOfUse" component={TermsOfUseScreen} options={{ title: "Terms of Use" }} />
+      <Stack.Screen name="WellnessDisclaimer" component={WellnessDisclaimerScreen} options={{ title: "Wellness Disclaimer" }} />
+      <Stack.Screen name="AccountDeletion" component={AccountDeletionScreen} options={{ title: "Account Deletion" }} />
       <Stack.Screen name="Contact" component={ContactScreen} options={{ title: "Contact" }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Help" component={HelpScreen} options={{ title: "Help" }} />

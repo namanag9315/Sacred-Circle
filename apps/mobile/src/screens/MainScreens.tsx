@@ -93,6 +93,14 @@ import quoteLakeBackground from "../assets/reference/quote-lake-background.png";
 import audioMeditation from "../assets/reference/audio-meditation.png";
 import shivirTemple from "../assets/reference/shivir-temple.png";
 import unlockSuccessAnimation from "../assets/animations/unlock-success.json";
+import legalContent from "../content/legal-content.json";
+
+type LegalDocumentKey = keyof typeof legalContent.documents;
+type LegalSectionContent = {
+  heading: string;
+  paragraphs?: readonly string[];
+  bullets?: readonly string[];
+};
 
 function useAppData() {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -834,17 +842,63 @@ export function VideosListScreen() {
 }
 
 export function AboutScreen() {
-  const { pages, settings } = useAppData();
-  const about = pages.find((page) => page.slug === "about");
+  const about = legalContent.about;
   return (
     <LightScreen>
       <LogoMark compact />
-      <AppHeader title={about?.title || "About Sacred Circle"} subtitle={about?.subtitle || "Meditation, healing and spiritual wisdom."} />
+      <AppHeader title={about.title} subtitle={about.subtitle} />
       <PremiumCard>
-        <BodyText>{about?.body || "Sacred Circle offers meditation, inner-awareness content and online Sunday sessions."}</BodyText>
+        <Text style={local.aboutLead}>{about.intro}</Text>
       </PremiumCard>
-      <Text style={local.disclaimer}>{settings.disclaimer_text || DISCLAIMER}</Text>
+      {about.sections.map((section) => <DocumentSection key={section.heading} section={section} />)}
+      <PremiumCard>
+        <Text style={local.legalNoticeTitle}>Important wellbeing notice</Text>
+        <Text style={local.legalNoticeText}>Sacred Circle provides spiritual and general wellbeing practices, not medical or mental-health treatment. Personal experiences vary and no outcome is guaranteed.</Text>
+      </PremiumCard>
+      <Text style={local.legalUpdated}>Information updated {legalContent.lastUpdated}</Text>
     </LightScreen>
+  );
+}
+
+export function LegalScreen({ navigation }: any) {
+  const items: Array<[string, string, string]> = [
+    ["Privacy Policy", "How personal information is collected, used, protected and deleted.", "PrivacyPolicy"],
+    ["Terms of Use", "Rules for accounts, Sacred Access Keys, sessions and licensed content.", "TermsOfUse"],
+    ["Wellness & Spiritual Disclaimer", "Safety guidance and the limits of meditation and spiritual content.", "WellnessDisclaimer"],
+    ["Account & Data Deletion", "In-app deletion, email requests and the information removed.", "AccountDeletion"],
+    ["Support", "Help with sign-in, sessions, recordings and account requests.", "Contact"]
+  ];
+
+  return (
+    <LightScreen>
+      <LogoMark compact />
+      <AppHeader title="Legal, Privacy & Safety" subtitle="Policies and disclosures for the Sacred Circle app." />
+      {items.map(([title, subtitle, route]) => (
+        <MoreItem key={title} title={title} subtitle={subtitle} onPress={() => navigation.navigate(route)} />
+      ))}
+      <Text style={local.legalUpdated}>Current as of {legalContent.lastUpdated}</Text>
+    </LightScreen>
+  );
+}
+
+export function PrivacyPolicyScreen() {
+  return <LegalDocumentScreen documentKey="privacy" />;
+}
+
+export function TermsOfUseScreen() {
+  return <LegalDocumentScreen documentKey="terms" />;
+}
+
+export function WellnessDisclaimerScreen() {
+  return <LegalDocumentScreen documentKey="wellness" />;
+}
+
+export function AccountDeletionScreen({ navigation }: any) {
+  return (
+    <LegalDocumentScreen documentKey="deletion">
+      <PrimaryButton label="Open My Profile" onPress={() => navigation.navigate("Profile")} />
+      <SecondaryButton label="Request Deletion by Email" icon={<Mail color={colors.navy} size={18} />} onPress={() => openUrl(`mailto:${legalContent.contactEmail}?subject=Delete%20my%20Sacred%20Circle%20account`)} />
+    </LegalDocumentScreen>
   );
 }
 
@@ -935,6 +989,39 @@ export function HelpScreen() {
       <HelpItem title="Contacting support" body="Open Contact and Help from More to send a message or use the verified contact email." />
       <Text style={local.disclaimer}>{DISCLAIMER}</Text>
     </LightScreen>
+  );
+}
+
+function LegalDocumentScreen({ documentKey, children }: { documentKey: LegalDocumentKey; children?: ReactNode }) {
+  const document = legalContent.documents[documentKey];
+  return (
+    <LightScreen>
+      <LogoMark compact />
+      <AppHeader title={document.title} subtitle={document.subtitle} />
+      <Text style={local.legalUpdated}>Last updated {legalContent.lastUpdated}</Text>
+      {document.sections.map((section) => <DocumentSection key={section.heading} section={section} />)}
+      {children ? <View style={local.legalActions}>{children}</View> : null}
+      <PremiumCard>
+        <Text style={local.legalNoticeTitle}>Questions?</Text>
+        <Text style={local.legalNoticeText}>Contact Sacred Circle at {legalContent.contactEmail}.</Text>
+        <SecondaryButton label="Email Sacred Circle" icon={<Mail color={colors.navy} size={18} />} onPress={() => openUrl(`mailto:${legalContent.contactEmail}`)} />
+      </PremiumCard>
+    </LightScreen>
+  );
+}
+
+function DocumentSection({ section }: { section: LegalSectionContent }) {
+  return (
+    <PremiumCard>
+      <Text style={local.legalSectionTitle}>{section.heading}</Text>
+      {section.paragraphs?.map((paragraph) => <Text key={paragraph} style={local.legalParagraph}>{paragraph}</Text>)}
+      {section.bullets?.map((bullet) => (
+        <View key={bullet} style={local.legalBulletRow}>
+          <Text style={local.legalBullet}>•</Text>
+          <Text style={local.legalBulletText}>{bullet}</Text>
+        </View>
+      ))}
+    </PremiumCard>
   );
 }
 
@@ -1326,5 +1413,15 @@ const local = StyleSheet.create({
   infoRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   infoLabel: { color: colors.mutedText, fontWeight: "700", marginBottom: 3 },
   infoValue: { color: colors.navy, fontWeight: "900", fontSize: 16 },
-  disclaimer: { color: colors.paleText, fontSize: 12, lineHeight: 18, textAlign: "center", marginTop: spacing.md }
+  disclaimer: { color: colors.paleText, fontSize: 12, lineHeight: 18, textAlign: "center", marginTop: spacing.md },
+  aboutLead: { color: colors.navy, fontFamily: "Georgia", fontSize: 20, lineHeight: 30 },
+  legalUpdated: { color: colors.mutedText, fontSize: 12, lineHeight: 18, textAlign: "center", marginBottom: spacing.sm },
+  legalSectionTitle: { color: colors.navy, fontFamily: "Georgia", fontSize: 21, lineHeight: 28, marginBottom: 10 },
+  legalParagraph: { color: colors.bodyDark, fontSize: 15, lineHeight: 24, marginBottom: 10 },
+  legalBulletRow: { flexDirection: "row", alignItems: "flex-start", gap: 9, marginBottom: 9 },
+  legalBullet: { color: colors.gold, fontSize: 18, lineHeight: 23, fontWeight: "900" },
+  legalBulletText: { flex: 1, color: colors.bodyDark, fontSize: 15, lineHeight: 23 },
+  legalNoticeTitle: { color: colors.navy, fontFamily: "Georgia", fontSize: 20, lineHeight: 27, marginBottom: 8 },
+  legalNoticeText: { color: colors.bodyDark, fontSize: 14, lineHeight: 22, marginBottom: 10 },
+  legalActions: { gap: 10, marginBottom: spacing.md }
 });
