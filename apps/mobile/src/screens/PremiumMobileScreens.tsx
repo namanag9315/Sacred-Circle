@@ -65,6 +65,7 @@ import {
 } from "../components/Sacred";
 import { useAuth } from "../context/AuthContext";
 import {
+  findRecordingsBySacredKey,
   listAnnouncements,
   listEvents,
   listResources,
@@ -386,7 +387,7 @@ function DataStateCard({
 }
 
 export function HomeScreen({ navigation }: any) {
-  const { profile, userId, completeSacredKey, recordSessionJoin } = useAuth();
+  const { profile, userId, recordSessionJoin } = useAuth();
   const { sessions, resources, events, videos, announcements, settings, loading, error, reload } = usePremiumData();
   const { width } = useWindowDimensions();
   const compact = width < 370;
@@ -397,9 +398,7 @@ export function HomeScreen({ navigation }: any) {
   const nextEvent = events[0];
   const latestAnnouncement = announcements[0];
   const audioCount = audioResources.length;
-  const protectedCount = resources.filter((resource) => resource.type === "audio" && resource.access_type === "session_protected").length;
   const avatarInitial = (profile?.name || profile?.email || "S").trim().slice(0, 1).toUpperCase();
-  const protectedRecording = resources.find((resource) => resource.access_type === "session_protected" && resource.session_id);
   const whatsappUrl = settings.whatsapp_group_url?.trim() || "";
 
   async function rememberSessionClick(session?: Session) {
@@ -496,11 +495,7 @@ export function HomeScreen({ navigation }: any) {
 
           <FadeUp delay={270}>
             <HomeAccessKeyCard
-              recording={protectedRecording}
-              protectedCount={protectedCount}
-              onUnlock={completeSacredKey}
               onAuthorized={(recording, accessCode) => navigateApp(navigation, "AudioPlayer", { resource: recording, accessCode })}
-              onOpenRecordings={() => navigateApp(navigation, "Audio")}
             />
           </FadeUp>
 
@@ -1326,43 +1321,47 @@ function ProfileField({
 }
 
 function HomeAccessKeyCard({
-  recording,
-  protectedCount,
-  onUnlock,
-  onAuthorized,
-  onOpenRecordings
+  onAuthorized
 }: {
-  recording?: Resource;
-  protectedCount: number;
-  onUnlock: (sessionId: string, code: string) => Promise<string>;
   onAuthorized: (recording: Resource, accessCode: string) => void;
-  onOpenRecordings: () => void;
 }) {
   const [code, setCode] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [matchedCode, setMatchedCode] = useState("");
+  const [recordings, setRecordings] = useState<Resource[]>([]);
 
   async function submit() {
-    if (!recording?.session_id) {
-      setMessage(protectedCount ? "Choose a protected recording from the Audio Library." : "No protected recording is available yet.");
-      return;
-    }
     if (code.length !== SACRED_KEY_LENGTH) {
       setMessage(`Enter the complete ${SACRED_KEY_LENGTH}-digit key shared during the live session.`);
       return;
     }
     setBusy(true);
-    const result = await onUnlock(recording.session_id, code);
+    const result = await findRecordingsBySacredKey(code);
     setBusy(false);
-    if (result === "unlocked" || result === "already_unlocked") {
-      const accessCode = code;
-      setCode("");
-      setMessage("");
-      onAuthorized(recording, accessCode);
-    } else if (result === "expired_code") setMessage("This Sacred Access Key has expired.");
-    else if (result === "rate_limited") setMessage("Too many attempts. Please wait and try again.");
-    else if (result === "auth_required" || result === "service_unavailable") setMessage("Please sign in and try again.");
-    else setMessage("This key does not match the selected session recording.");
+    setRecordings(result.recordings);
+    if (result.status === "matched" && result.recordings.length) {
+      setMatchedCode(code);
+      setMessage(result.recordings.length === 1 ? "Your session recording is ready." : `${result.recordings.length} session recordings are ready.`);
+    } else {
+      setMatchedCode("");
+      if (result.status === "expired_code") setMessage("This Sacred Access Key has expired.");
+      else if (result.status === "rate_limited") setMessage("Too many attempts. Please wait 15 minutes and try again.");
+      else if (result.status === "auth_required") setMessage("Please sign in before using a Sacred Access Key.");
+      else if (result.status === "recording_unavailable") setMessage("The key is valid, but its recording has not been published yet.");
+      else if (result.status === "service_unavailable") setMessage("The recording service is temporarily unavailable. Please try again.");
+      else setMessage("This Sacred Access Key is incorrect.");
+    }
+  }
+
+  function playRecording(recording: Resource) {
+    if (!matchedCode) return;
+    const accessCode = matchedCode;
+    setCode("");
+    setMatchedCode("");
+    setRecordings([]);
+    setMessage("");
+    onAuthorized(recording, accessCode);
   }
 
   return (
@@ -1371,32 +1370,51 @@ function HomeAccessKeyCard({
         <View style={premium.compactCardIcon}><LockKeyhole color={colors.gold} size={22} /></View>
         <View style={premium.compactCardCopy}>
           <Text style={premium.compactCardTitle}>Sacred Access Key</Text>
-          <Text style={premium.compactCardText}>Enter the six-digit key to open this protected recording. The key is required again next time.</Text>
+          <Text style={premium.compactCardText}>Enter your session's six-digit key and its protected recording will appear here. The key is required again next time.</Text>
         </View>
       </View>
-      {recording?.session_id ? (
-        <View style={premium.accessKeyControls}>
-          <TextInput
-            accessibilityLabel="Sacred Access Key"
-            autoCorrect={false}
-            keyboardType="number-pad"
-            textContentType="oneTimeCode"
-            maxLength={SACRED_KEY_LENGTH}
-            value={code}
-            onChangeText={(value) => {
-              setCode(value.replace(/\D/g, "").slice(0, SACRED_KEY_LENGTH));
-              setMessage("");
-            }}
-            placeholder="6 digits"
-            placeholderTextColor={colors.body}
-            style={premium.accessKeyInput}
-          />
-          <PrimaryButton label={busy ? "Checking..." : "Open Recording"} onPress={submit} disabled={busy} style={premium.accessKeyButton} />
+      <View style={premium.accessKeyControls}>
+        <TextInput
+          accessibilityLabel="Sacred Access Key"
+          autoCorrect={false}
+          keyboardType="number-pad"
+          textContentType="oneTimeCode"
+          maxLength={SACRED_KEY_LENGTH}
+          value={code}
+          onChangeText={(value) => {
+            setCode(value.replace(/\D/g, "").slice(0, SACRED_KEY_LENGTH));
+            setMatchedCode("");
+            setRecordings([]);
+            setMessage("");
+          }}
+          onSubmitEditing={() => {
+            if (!busy && code.length === SACRED_KEY_LENGTH) void submit();
+          }}
+          placeholder="6 digits"
+          placeholderTextColor={colors.body}
+          style={premium.accessKeyInput}
+        />
+        <PrimaryButton label={busy ? "Checking..." : "Find Recording"} onPress={submit} disabled={busy} style={premium.accessKeyButton} />
+      </View>
+      {message ? <Text style={[premium.accessKeyMessage, recordings.length > 0 && premium.accessKeyMessageSuccess]}>{message}</Text> : null}
+      {recordings.length ? (
+        <View style={premium.accessKeyResults}>
+          {recordings.map((recording) => (
+            <View key={recording.id} style={premium.accessKeyResultRow}>
+              <View style={premium.accessKeyResultIcon}><Headphones color={colors.gold} size={20} /></View>
+              <View style={premium.accessKeyResultCopy}>
+                <Text numberOfLines={2} style={premium.accessKeyResultTitle}>{recording.title}</Text>
+                <Text numberOfLines={1} style={premium.accessKeyResultMeta}>
+                  {[recording.recorded_at ? formatShortDate(recording.recorded_at) : "Session recording", recording.duration_seconds ? formatDuration(recording.duration_seconds) : ""].filter(Boolean).join(" · ")}
+                </Text>
+              </View>
+              <Pressable accessibilityRole="button" accessibilityLabel={`Play ${recording.title}`} onPress={() => playRecording(recording)} style={premium.accessKeyResultPlay}>
+                <Play color="#FFFFFF" fill="#FFFFFF" size={17} />
+              </Pressable>
+            </View>
+          ))}
         </View>
-      ) : (
-        <SecondaryButton label="Open Audio Library" onPress={onOpenRecordings} style={premium.accessKeyOpenButton} textStyle={premium.listenText} />
-      )}
-      {message ? <Text style={premium.accessKeyMessage}>{message}</Text> : null}
+      ) : null}
     </PremiumCard>
   );
 }
@@ -1570,6 +1588,14 @@ const premium = StyleSheet.create({
   accessKeyButton: { flex: 1.28, minHeight: 50, borderRadius: 13, paddingHorizontal: 10 },
   accessKeyOpenButton: { alignSelf: "flex-start", minHeight: 44, marginTop: 14, paddingHorizontal: 18 },
   accessKeyMessage: { color: colors.bodyDark, fontSize: 12, lineHeight: 18, marginTop: 10 },
+  accessKeyMessageSuccess: { color: "#527A4A", fontWeight: "800" },
+  accessKeyResults: { gap: 9, marginTop: 12 },
+  accessKeyResultRow: { minHeight: 68, borderRadius: 15, borderWidth: 1, borderColor: "rgba(201,147,50,0.22)", backgroundColor: "rgba(255,249,237,0.88)", flexDirection: "row", alignItems: "center", gap: 10, padding: 10 },
+  accessKeyResultIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: "rgba(246,231,198,0.72)", alignItems: "center", justifyContent: "center" },
+  accessKeyResultCopy: { flex: 1, minWidth: 0 },
+  accessKeyResultTitle: { color: colors.navy, fontFamily: "Georgia", fontSize: 14, lineHeight: 18, fontWeight: "700" },
+  accessKeyResultMeta: { color: colors.bodyDark, fontSize: 11.5, lineHeight: 16, marginTop: 3 },
+  accessKeyResultPlay: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.navy, alignItems: "center", justifyContent: "center" },
   announcementCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 16, marginBottom: 16 },
   libraryCard: { padding: 18, marginBottom: 18 },
   libraryGrid: { flexDirection: "row", gap: 8, marginTop: 12, marginBottom: 12 },

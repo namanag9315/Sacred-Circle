@@ -414,7 +414,7 @@ export function SessionDetailScreen({ route, navigation }: any) {
   );
 }
 
-export function AudioPlayerScreen({ route }: any) {
+export function AudioPlayerScreen({ route, navigation }: any) {
   const resource = route.params.resource as Resource;
   const accessCode = typeof route.params.accessCode === "string" ? route.params.accessCode : undefined;
   const player = useAudioPlayer(null, { updateInterval: 250 });
@@ -474,6 +474,9 @@ export function AudioPlayerScreen({ route }: any) {
     setLoading(true);
     const url = await getPlayableResourceUrl(resource, accessCode);
     if (!url) throw new Error("Audio URL not available");
+    if (resource.access_type === "session_protected" && accessCode) {
+      navigation.setParams({ accessCode: undefined });
+    }
     player.replace({ uri: url });
     player.setActiveForLockScreen(
       true,
