@@ -193,4 +193,11 @@ export interface PushToken {
   updated_at?: string;
 }
 
+export interface NotificationPreference {
+  user_id: string;
+  sunday_session_enabled: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export type RecordingState = "not_uploaded" | "locked" | "unlocked";

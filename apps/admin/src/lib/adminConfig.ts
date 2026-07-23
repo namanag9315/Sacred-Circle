@@ -193,9 +193,9 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
     demoRows: []
   },
   announcements: {
-    title: "Announcements",
-    eyebrow: "Home card",
-    description: "Create one clear announcement for Home. Push notifications can be wired later.",
+    title: "Notifications",
+    eyebrow: "Sunday reminders",
+    description: "Send a push reminder to members who opted in, and manage announcement cards shown on Home.",
     table: "announcements",
     columns: ["title", "message", "target_type", "is_active", "created_at"],
     fields: [
@@ -224,6 +224,7 @@ export const navItems = [
   ["Home", "/dashboard"],
   ["Upload Recording", "/meditations"],
   ["Video Library", "/videos"],
+  ["Notifications", "/announcements"],
   ["Members", "/users"],
   ["App Details", "/settings"]
 ] as const;

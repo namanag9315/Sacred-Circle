@@ -22,6 +22,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   useWindowDimensions,
@@ -51,6 +52,7 @@ import {
   Play,
   Search,
   Settings,
+  ShieldCheck,
   SlidersHorizontal,
   Sparkles,
   Star,
@@ -67,13 +69,17 @@ import {
 import { useAuth } from "../context/AuthContext";
 import {
   findRecordingsBySacredKey,
+  getNotificationPreference,
   listAnnouncements,
   listEvents,
   listResources,
   listSessions,
   listSettings,
-  listVideos
+  listVideos,
+  registerPushToken,
+  setSundaySessionNotifications
 } from "../services/repository";
+import { getExpoPushToken } from "../services/notifications";
 import { colors, shadows } from "../theme";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import sunriseLotus from "../assets/reference/sunrise-lotus-optimized.jpg";
@@ -436,9 +442,14 @@ export function HomeScreen({ navigation }: any) {
           <View style={premium.homeHeroHeader}>
             <Image source={sacredFlameLogo} resizeMode="contain" style={premium.homeHeroLogo} />
             <View style={premium.headerActions}>
-              <View style={premium.heroNotificationButton}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Sunday reminder settings"
+                onPress={() => navigateApp(navigation, "Notifications")}
+                style={premium.heroNotificationButton}
+              >
                 <Bell color={colors.navy} size={19} strokeWidth={1.7} />
-              </View>
+              </Pressable>
               <Pressable onPress={() => navigateApp(navigation, "Profile")} style={premium.heroAvatarSmall}>
                 {profile?.avatar_url ? <Image source={{ uri: profile.avatar_url }} resizeMode="cover" style={premium.avatarImageSmall} /> : <Text style={premium.avatarInitial}>{avatarInitial}</Text>}
               </Pressable>
@@ -702,10 +713,15 @@ export function MeditationsScreen({ navigation }: any) {
           </View>
         </View>
         <View style={premium.headerActions}>
-          <View style={premium.notificationButton}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Sunday reminder settings"
+            onPress={() => navigateApp(navigation, "Notifications")}
+            style={premium.notificationButton}
+          >
             <Bell color={colors.navy} size={18} strokeWidth={1.7} />
             <View style={premium.notificationDot} />
-          </View>
+          </Pressable>
           <Pressable onPress={() => navigateApp(navigation, "Profile")} style={premium.avatarSmall}>
             {profile?.avatar_url ? <Image source={{ uri: profile.avatar_url }} resizeMode="cover" style={premium.avatarImageSmall} /> : <Text style={premium.avatarInitial}>{avatarInitial}</Text>}
           </Pressable>
@@ -829,6 +845,7 @@ export function MoreScreen({ navigation }: any) {
 
   const primaryRows = [
     ["My Profile", <User color={colors.navy} size={18} />, () => navigateApp(navigation, "Profile")],
+    ["Sunday Reminders", <Bell color={colors.navy} size={18} />, () => navigateApp(navigation, "Notifications")],
     ["Sunday Sessions", <CalendarDays color={colors.navy} size={18} />, () => navigateApp(navigation, "Sessions")],
     ["Audio Library", <Headphones color={colors.navy} size={18} />, () => navigateApp(navigation, "Audio")],
     ["Video Library", <Video color={colors.navy} size={18} />, () => navigateApp(navigation, "Video")]
@@ -872,6 +889,132 @@ export function MoreScreen({ navigation }: any) {
       <Pressable onPress={logout} style={premium.logoutButton}>
         <Text style={premium.logoutText}>Logout</Text>
       </Pressable>
+    </PageShell>
+  );
+}
+
+export function NotificationSettingsScreen({ navigation }: any) {
+  const { userId } = useAuth();
+  const [enabled, setEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const nativePushAvailable = Platform.OS !== "web";
+
+  useEffect(() => {
+    let active = true;
+    async function loadPreference() {
+      if (!userId) {
+        if (active) setLoading(false);
+        return;
+      }
+      try {
+        const preference = await getNotificationPreference(userId);
+        if (active) setEnabled(Boolean(preference?.sunday_session_enabled));
+      } catch (error) {
+        console.warn("Unable to load Sunday reminder preference", error);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    void loadPreference();
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
+  async function updatePreference(nextEnabled: boolean) {
+    if (saving || !userId) return;
+    if (!nativePushAvailable) {
+      Alert.alert(
+        "Use the Sacred Circle app",
+        "Sunday push reminders are available in the installed iOS and Android app. Your web account remains unchanged."
+      );
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (nextEnabled) {
+        const token = await getExpoPushToken();
+        if (!token) {
+          Alert.alert(
+            "Notifications not enabled",
+            "Allow notifications in your phone settings, then try again from the Sacred Circle app."
+          );
+          return;
+        }
+        await registerPushToken({
+          user_id: userId,
+          expo_push_token: token,
+          platform: Platform.OS
+        });
+      }
+      await setSundaySessionNotifications(userId, nextEnabled);
+      setEnabled(nextEnabled);
+      Alert.alert(
+        nextEnabled ? "Sunday reminders enabled" : "Sunday reminders turned off",
+        nextEnabled
+          ? "You can now receive Sunday session reminders and important session updates."
+          : "You will no longer receive Sunday session push reminders."
+      );
+    } catch (error) {
+      console.warn("Unable to update Sunday reminder preference", error);
+      Alert.alert("Could not update reminders", "Please check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <PageShell compactTop>
+      <CenterTitle
+        title="Notifications"
+        left={<CircleIconButton onPress={() => navigation.goBack()}><ArrowLeft color={colors.navy} size={20} /></CircleIconButton>}
+      />
+      <PremiumCard style={premium.notificationSettingsCard}>
+        <View style={premium.notificationSettingsIcon}>
+          <Bell color={colors.gold} size={30} strokeWidth={1.8} />
+        </View>
+        <Text style={premium.notificationSettingsTitle}>Sunday Session Reminders</Text>
+        <Text style={premium.notificationSettingsBody}>
+          Receive a reminder and important updates for Sacred Circle&apos;s Sunday meditation session.
+        </Text>
+        <View style={premium.notificationToggleRow}>
+          <View style={premium.notificationToggleCopy}>
+            <Text style={premium.notificationToggleTitle}>Allow Sunday reminders</Text>
+            <Text style={premium.notificationToggleStatus}>
+              {loading
+                ? "Loading your preference..."
+                : nativePushAvailable
+                  ? enabled ? "On for this account" : "Off"
+                  : "Available in the installed mobile app"}
+            </Text>
+          </View>
+          {loading || saving ? (
+            <ActivityIndicator color={colors.gold} />
+          ) : (
+            <Switch
+              accessibilityLabel="Allow Sunday session reminders"
+              accessibilityState={{ checked: enabled, disabled: !nativePushAvailable }}
+              disabled={!nativePushAvailable}
+              value={enabled}
+              onValueChange={(value) => { void updatePreference(value); }}
+              trackColor={{ false: "#D8D5CE", true: colors.goldSoft }}
+              thumbColor={enabled ? colors.gold : "#FFFFFF"}
+              ios_backgroundColor="#D8D5CE"
+            />
+          )}
+        </View>
+      </PremiumCard>
+      <PremiumCard style={premium.notificationPrivacyCard}>
+        <ShieldCheck color={colors.gold} size={21} />
+        <View style={premium.notificationPrivacyCopy}>
+          <Text style={premium.notificationPrivacyTitle}>You are in control</Text>
+          <Text style={premium.notificationPrivacyBody}>
+            Notifications are optional. You can turn them off here or in your phone settings at any time.
+          </Text>
+        </View>
+      </PremiumCard>
     </PageShell>
   );
 }
@@ -1011,6 +1154,7 @@ export function ProfileScreen({ navigation }: any) {
         {profile ? <MoreRow label="Personal Details" icon={<User color={colors.navy} size={19} />} onPress={() => setEditing(true)} /> : null}
         {profile?.phone ? <MoreRow label="Mobile Number" icon={<User color={colors.navy} size={19} />} trailing={profile.phone} /> : null}
         {profile?.city ? <MoreRow label="City" icon={<MapPin color={colors.navy} size={19} />} trailing={profile.city} /> : null}
+        <MoreRow label="Sunday Reminders" icon={<Bell color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "Notifications")} />
         <MoreRow label="Audio Library" icon={<Headphones color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "Audio")} />
         <MoreRow label="Sacred Access Key" icon={<LockKeyhole color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "Sessions")} />
         <MoreRow label="Contact and Help" icon={<HelpCircle color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "Help")} />
@@ -1735,6 +1879,18 @@ const premium = StyleSheet.create({
   moreRowIcon: { width: 24, alignItems: "center" },
   moreRowLabel: { flex: 1, color: colors.navy, fontSize: 14, fontWeight: "800" },
   moreTrailing: { maxWidth: "42%", flexShrink: 1, color: colors.gold, fontWeight: "900" },
+  notificationSettingsCard: { alignItems: "center", paddingVertical: 26, marginBottom: 14 },
+  notificationSettingsIcon: { width: 68, height: 68, borderRadius: 34, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(246,231,198,0.58)", marginBottom: 14 },
+  notificationSettingsTitle: { color: colors.navy, fontFamily: "Georgia", fontSize: 23, lineHeight: 29, textAlign: "center" },
+  notificationSettingsBody: { color: colors.bodyDark, fontSize: 13, lineHeight: 20, textAlign: "center", marginTop: 8, maxWidth: 340 },
+  notificationToggleRow: { width: "100%", minHeight: 76, marginTop: 22, paddingHorizontal: 15, paddingVertical: 13, borderRadius: 18, borderWidth: 1, borderColor: colors.goldBorder, backgroundColor: colors.goldWash, flexDirection: "row", alignItems: "center", gap: 14 },
+  notificationToggleCopy: { flex: 1, minWidth: 0 },
+  notificationToggleTitle: { color: colors.navy, fontSize: 14, fontWeight: "900" },
+  notificationToggleStatus: { color: colors.bodyDark, fontSize: 11.5, lineHeight: 17, marginTop: 4 },
+  notificationPrivacyCard: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 14 },
+  notificationPrivacyCopy: { flex: 1, minWidth: 0 },
+  notificationPrivacyTitle: { color: colors.navy, fontFamily: "Georgia", fontSize: 17, lineHeight: 22 },
+  notificationPrivacyBody: { color: colors.bodyDark, fontSize: 12, lineHeight: 18, marginTop: 4 },
   dangerZoneCard: { marginTop: 2, borderColor: "rgba(185, 28, 28, 0.28)", gap: 8 },
   dangerZoneTitle: { color: colors.danger, fontFamily: "Georgia", fontSize: 18, lineHeight: 24 },
   dangerZoneBody: { color: colors.bodyDark, fontSize: 12, lineHeight: 18 },

@@ -33,6 +33,7 @@ import {
   HomeScreen,
   MeditationsScreen,
   MoreScreen,
+  NotificationSettingsScreen,
   ProfileScreen,
   SessionsScreen,
   VideosListScreen
@@ -145,6 +146,7 @@ function AppStack() {
       <Stack.Screen name="AccountDeletion" component={AccountDeletionScreen} options={{ title: "Account Deletion" }} />
       <Stack.Screen name="Contact" component={ContactScreen} options={{ title: "Contact" }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Notifications" component={NotificationSettingsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Help" component={HelpScreen} options={{ title: "Help" }} />
       <Stack.Screen name="Resources" component={ResourcesScreen} options={{ title: "Resources" }} />
     </Stack.Navigator>

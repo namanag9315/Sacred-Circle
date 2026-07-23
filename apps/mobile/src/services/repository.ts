@@ -4,6 +4,7 @@ import {
   type AppSetting,
   type ContactSubmission,
   type EventRegistration,
+  type NotificationPreference,
   type PageContent,
   type Profile,
   type Program,
@@ -263,6 +264,28 @@ export async function registerPushToken(input: { user_id: string; expo_push_toke
   });
   if (error) throw error;
   return true;
+}
+
+export async function getNotificationPreference(userId: string): Promise<NotificationPreference | null> {
+  const client = requireDataClient();
+  const { data, error } = await client
+    .from("notification_preferences")
+    .select("user_id,sunday_session_enabled,created_at,updated_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data as NotificationPreference | null;
+}
+
+export async function setSundaySessionNotifications(userId: string, enabled: boolean): Promise<NotificationPreference> {
+  const client = requireDataClient();
+  const { data, error } = await client
+    .from("notification_preferences")
+    .upsert({ user_id: userId, sunday_session_enabled: enabled }, { onConflict: "user_id" })
+    .select("user_id,sunday_session_enabled,created_at,updated_at")
+    .single();
+  if (error) throw error;
+  return data as NotificationPreference;
 }
 
 export async function getPlayableResourceUrl(resource: Resource, accessCode?: string) {
