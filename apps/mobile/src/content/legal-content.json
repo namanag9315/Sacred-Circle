@@ -1,0 +1,286 @@
+{
+  "lastUpdated": "21 July 2026",
+  "contactEmail": "sacredcircle45@gmail.com",
+  "about": {
+    "title": "About Sacred Circle",
+    "subtitle": "Healing, meditation, inner transformation and spiritual awareness.",
+    "intro": "Sacred Circle is a spiritual community dedicated to helping individuals explore healing, inner transformation, manifestation and spiritual awakening through simple yet powerful meditation practices.",
+    "sections": [
+      {
+        "heading": "Our approach",
+        "paragraphs": [
+          "Our practices draw inspiration from modern scientific ideas and the timeless wisdom of Indian spirituality. They are presented as practical exercises that people can understand and incorporate into daily life.",
+          "The community's intention is to support personal reflection and positive change in wellbeing, relationships, career, emotional balance and spiritual awareness. Experiences and results vary for every person."
+        ]
+      },
+      {
+        "heading": "Our programs",
+        "bullets": [
+          "Physical and emotional wellbeing",
+          "Stress, anxiety and inner peace",
+          "Relationships and family life",
+          "Career and professional growth",
+          "Manifestation and abundance",
+          "Spiritual growth and self-awareness",
+          "Guidance from the Higher Self and I AM Presence",
+          "Merkaba activation and chakra practices",
+          "Connection to the Great Central Sun",
+          "Teachings inspired by spiritual masters including Shiv, Vishnu, Buddha and Jesus",
+          "Spiritual exploration involving Arcturians, Pleiadians, Sirians and Andromedans",
+          "Past-life regression and reflective practices",
+          "DNA activation as a spiritual practice"
+        ]
+      },
+      {
+        "heading": "Our mentors",
+        "paragraphs": [
+          "The main mentors of Sacred Circle are Lina Raipure and Diwakar Raipure. Diwakar holds an M.Tech. from IIT Madras, Chennai, and Lina holds an M.Sc. from the Institute of Science, Nagpur.",
+          "Both mentors have extensive experience in healing and meditation. Over approximately 30 years they have trained with facilitators and spiritual teachers in India and abroad, practised more than 100 modalities, and studied a wide range of scientific ideas and spiritual methods. They have developed their own meditation techniques with an emphasis on being effective and easy to learn."
+        ]
+      },
+      {
+        "heading": "Connect with us",
+        "paragraphs": [
+          "Sacred Circle conducts free online meditation sessions every Sunday at 4:00 PM IST. A session typically lasts around two hours and may include spiritual discussion, guided meditation and practical insights.",
+          "When available, participants may receive recordings to support continued practice at their own pace. Session details, links and recording access are published in the app."
+        ]
+      }
+    ]
+  },
+  "documents": {
+    "privacy": {
+      "slug": "privacy-policy",
+      "title": "Privacy Policy",
+      "subtitle": "How Sacred Circle collects, uses, protects and deletes information.",
+      "sections": [
+        {
+          "heading": "1. Who we are",
+          "paragraphs": [
+            "This Privacy Policy applies to the Sacred Circle mobile application, web application and related support services operated by Sacred Circle. Questions or privacy requests can be sent to sacredcircle45@gmail.com."
+          ]
+        },
+        {
+          "heading": "2. Information we collect",
+          "bullets": [
+            "Account information: email address, authentication identifiers and, if Google sign-in is used, the name and profile image supplied by Google.",
+            "Profile information: name, date of birth, city and state; phone number is optional.",
+            "Participation information: Sunday-session registrations, event-interest submissions and messages sent to support.",
+            "App access and security information: protected-recording authorization attempts, authentication events and records needed to prevent misuse.",
+            "Notification information: a device notification token and platform type only if notifications are enabled.",
+            "Local app information: onboarding completion and recently played audio may be stored on the device.",
+            "Basic technical information automatically processed by hosting, authentication and storage providers, such as IP address, browser or device type and service logs."
+          ],
+          "paragraphs": [
+            "Sacred Circle does not request precise device location, contacts, microphone recordings, payment-card details or medical records through the app."
+          ]
+        },
+        {
+          "heading": "3. How we use information",
+          "bullets": [
+            "Create and secure an account and display a personalised greeting.",
+            "Provide sessions, protected recordings, events, profile features and support.",
+            "Send service or session notifications when enabled.",
+            "Respond to questions and maintain the safety and reliability of the service.",
+            "Meet legal obligations and enforce our Terms of Use."
+          ]
+        },
+        {
+          "heading": "4. Service providers and external services",
+          "paragraphs": [
+            "We do not sell personal information and the app does not use third-party advertising. Information is processed only as needed by providers that help operate the service, including Supabase for authentication and database services, Vercel for web hosting, Cloudflare R2 or Supabase Storage for private media delivery, Expo for optional notifications, and Google for Google sign-in and YouTube links.",
+            "Zoom, WhatsApp and YouTube are external services. If you choose to open them, their own privacy policies and account settings apply. Providers may process information in countries other than your own, subject to their safeguards and applicable law."
+          ]
+        },
+        {
+          "heading": "5. Security",
+          "paragraphs": [
+            "We use HTTPS encryption in transit, access controls, hashed Sacred Access Keys and time-limited protected-media links. No internet service can guarantee absolute security, so users should protect their email account and device and should not share Sacred Access Keys."
+          ]
+        },
+        {
+          "heading": "6. Retention and deletion",
+          "paragraphs": [
+            "Account and profile information is retained while the account is active. Support, event and security information is retained only for operational, safety or legal needs. When an account is deleted, Sacred Circle deletes the authentication account and associated profile, registrations, notification tokens, access records, event-interest submissions and support messages linked to that user.",
+            "Limited backup or security copies may remain for a short period until automatically overwritten or removed, unless longer retention is legally required. Information separately provided to external services such as Google, Zoom or WhatsApp must be managed with those providers."
+          ]
+        },
+        {
+          "heading": "7. Your choices and rights",
+          "bullets": [
+            "Review or update profile information from My Profile.",
+            "Decline the optional phone number and optional notifications.",
+            "Delete the account from My Profile → Delete My Account.",
+            "Request access, correction or deletion by emailing sacredcircle45@gmail.com from the registered email address."
+          ]
+        },
+        {
+          "heading": "8. Children",
+          "paragraphs": [
+            "The service is not directed to children under 13. A parent or legal guardian should supervise use by minors and contact us if they believe a child has provided personal information without appropriate permission."
+          ]
+        },
+        {
+          "heading": "9. Changes",
+          "paragraphs": [
+            "We may update this policy when the service or legal requirements change. The current version and its revision date will remain available in the app and on this public page."
+          ]
+        }
+      ]
+    },
+    "terms": {
+      "slug": "terms-of-use",
+      "title": "Terms of Use",
+      "subtitle": "Rules for using the Sacred Circle app, sessions and protected content.",
+      "sections": [
+        {
+          "heading": "1. Acceptance",
+          "paragraphs": [
+            "By creating an account or using Sacred Circle, you agree to these Terms of Use and acknowledge the Privacy Policy and Wellness Disclaimer. If you do not agree, do not use the service."
+          ]
+        },
+        {
+          "heading": "2. Personal, limited licence",
+          "paragraphs": [
+            "Sacred Circle grants you a limited, revocable, non-exclusive and non-transferable licence to use the app and its content for personal, non-commercial spiritual learning and wellbeing practice. No ownership rights are transferred."
+          ]
+        },
+        {
+          "heading": "3. Accounts and Sacred Access Keys",
+          "bullets": [
+            "Provide accurate account information and protect access to your email and device.",
+            "Sacred Access Keys are session-specific and for the intended participant only.",
+            "Do not share, publish, sell or attempt to bypass an access key or protected-media control.",
+            "We may restrict access where necessary to protect members, content or service security."
+          ]
+        },
+        {
+          "heading": "4. Sessions and external services",
+          "paragraphs": [
+            "Session dates, speakers, content, recordings and availability may change. Zoom, YouTube, WhatsApp and other external services are governed by their own terms. Sacred Circle is not responsible for an external service's availability or independent conduct."
+          ]
+        },
+        {
+          "heading": "5. Intellectual property",
+          "paragraphs": [
+            "Meditations, recordings, text, designs, logos and other Sacred Circle materials are owned by Sacred Circle or used with permission. You may not record, copy, download where no download is offered, redistribute, modify, publicly perform or commercially exploit content without written permission."
+          ]
+        },
+        {
+          "heading": "6. Respectful use",
+          "paragraphs": [
+            "Do not misuse the service, interfere with its operation, impersonate another person, submit unlawful or abusive material, infringe rights, or use sessions or contact channels to harass others."
+          ]
+        },
+        {
+          "heading": "7. Wellness and spiritual content",
+          "paragraphs": [
+            "Sacred Circle provides spiritual, meditation and general wellbeing content, not medical or mental-health diagnosis or treatment. Spiritual, manifestation, energy, past-life, DNA-activation and similar concepts are offered as belief-based or reflective practices. Outcomes are personal and are not guaranteed. Review the Wellness Disclaimer before participating."
+          ]
+        },
+        {
+          "heading": "8. Availability and liability",
+          "paragraphs": [
+            "The service is provided on an 'as available' basis. To the extent permitted by applicable law, Sacred Circle does not guarantee uninterrupted access or particular personal, health, relationship, career, financial or spiritual results. Nothing in these Terms excludes rights or liabilities that cannot legally be excluded."
+          ]
+        },
+        {
+          "heading": "9. Ending use",
+          "paragraphs": [
+            "You may stop using the service or delete your account at any time. Provisions concerning intellectual property, disclaimers and lawful limitations remain effective where applicable after account deletion."
+          ]
+        },
+        {
+          "heading": "10. Applicable law and contact",
+          "paragraphs": [
+            "These Terms are governed by the applicable laws of India, subject to any mandatory consumer protections in your location. Questions can be sent to sacredcircle45@gmail.com."
+          ]
+        }
+      ]
+    },
+    "wellness": {
+      "slug": "wellness-disclaimer",
+      "title": "Wellness & Spiritual Disclaimer",
+      "subtitle": "Important safety information for meditation and spiritual practices.",
+      "sections": [
+        {
+          "heading": "Not medical or professional care",
+          "paragraphs": [
+            "Sacred Circle content and sessions are intended for spiritual exploration, meditation, personal reflection and general wellbeing. They do not provide medical, psychiatric, psychological, legal, financial or other professional advice and are not a substitute for diagnosis or treatment by a qualified professional."
+          ]
+        },
+        {
+          "heading": "Use safely",
+          "bullets": [
+            "Do not delay or stop professional treatment because of app content or a session discussion.",
+            "Seek qualified care for health or mental-health concerns and contact local emergency services in an emergency.",
+            "Practise only in a safe place. Do not meditate while driving, operating machinery or doing anything that requires full attention.",
+            "Stop a practice if you feel unwell, distressed, disoriented or physically uncomfortable, and seek appropriate help.",
+            "If you are pregnant, have a medical or mental-health condition, or have concerns about a practice, consult an appropriate clinician before participating."
+          ]
+        },
+        {
+          "heading": "No guaranteed outcomes",
+          "paragraphs": [
+            "References to healing, manifestation, quantum ideas, energy, chakras, spiritual beings, past lives or DNA activation express the community's spiritual framework. They should not be interpreted as scientifically established medical claims or guarantees. Individual experiences vary."
+          ]
+        }
+      ]
+    },
+    "deletion": {
+      "slug": "account-deletion",
+      "title": "Account & Data Deletion",
+      "subtitle": "Delete your Sacred Circle account and associated personal information.",
+      "sections": [
+        {
+          "heading": "Delete inside the app",
+          "paragraphs": [
+            "Sign in, open More → My Profile, scroll to Delete Account, tap Delete My Account and confirm. The request is processed immediately and you will be signed out. This action cannot be undone."
+          ]
+        },
+        {
+          "heading": "Request deletion outside the app",
+          "paragraphs": [
+            "Email sacredcircle45@gmail.com from the email address registered to the Sacred Circle account with the subject 'Delete my Sacred Circle account'. We may ask you to verify control of the account before processing the request."
+          ]
+        },
+        {
+          "heading": "What is deleted",
+          "bullets": [
+            "Authentication account and profile details.",
+            "Session registrations and protected-recording access or security records linked to the account.",
+            "Notification tokens.",
+            "Event-interest submissions and support messages linked to the account."
+          ]
+        },
+        {
+          "heading": "Limited exceptions",
+          "paragraphs": [
+            "Isolated backup copies may remain briefly until overwritten, and information may be retained where required for security, fraud prevention or law. Data held independently by Google, Zoom, WhatsApp, YouTube or another external provider must be deleted through that provider."
+          ]
+        }
+      ]
+    },
+    "support": {
+      "slug": "support",
+      "title": "Support",
+      "subtitle": "Help with sign-in, sessions, Sacred Access Keys and account requests.",
+      "sections": [
+        {
+          "heading": "Contact Sacred Circle",
+          "paragraphs": [
+            "Email sacredcircle45@gmail.com and include the email used for your account plus a short description of the issue. Never send your password, email OTP or Sacred Access Key in a support message."
+          ]
+        },
+        {
+          "heading": "Common help",
+          "bullets": [
+            "Sign-in: check the inbox and spam folder for the secure email link, or use Google sign-in.",
+            "Session recording: enter the unique six-digit key shared for that session.",
+            "Audio playback: keep an internet connection while the protected temporary link is prepared.",
+            "Account deletion: use More → My Profile → Delete My Account or follow the public Account & Data Deletion page."
+          ]
+        }
+      ]
+    }
+  }
+}

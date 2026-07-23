@@ -31,7 +31,7 @@
 - Sessions, including Sacred Access Keys
 - Meditations
 - Pages, including Programs, Events, Videos, About, Contact, and Home snippets
-- Users, including manual session unlock records
+- Users and their profile details; legacy unlock rows no longer grant playback access
 - Announcements
 - Settings
 

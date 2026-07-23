@@ -7,12 +7,28 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldShowBanner: true,
     shouldShowList: true,
-    shouldPlaySound: false,
+    shouldPlaySound: true,
     shouldSetBadge: false
   })
 });
 
+const SUNDAY_NOTIFICATION_CHANNEL = "sunday-sessions";
+
+async function ensureSundayNotificationChannel() {
+  if (Platform.OS !== "android") return;
+  await Notifications.setNotificationChannelAsync(SUNDAY_NOTIFICATION_CHANNEL, {
+    name: "Sunday session reminders",
+    description: "Reminders and updates for Sacred Circle Sunday sessions.",
+    importance: Notifications.AndroidImportance.HIGH,
+    sound: "default",
+    vibrationPattern: [0, 250, 180, 250],
+    lightColor: "#C99332"
+  });
+}
+
 export async function requestNotificationPermissions() {
+  if (Platform.OS === "web") return false;
+  await ensureSundayNotificationChannel();
   const existing = await Notifications.getPermissionsAsync();
   let status = existing.status;
   if (status !== "granted") {
@@ -23,6 +39,7 @@ export async function requestNotificationPermissions() {
 }
 
 export async function getExpoPushToken() {
+  if (Platform.OS === "web") return null;
   const allowed = await requestNotificationPermissions();
   if (!allowed) return null;
 
@@ -41,7 +58,8 @@ export async function scheduleSundayReminder(title: string, body: string, date: 
     content: { title, body },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date
+      date,
+      channelId: Platform.OS === "android" ? SUNDAY_NOTIFICATION_CHANNEL : undefined
     }
   });
 }

@@ -1,3 +1,5 @@
+export const SACRED_KEY_LENGTH = 6;
+
 export const FREE_MEDITATION_CATEGORIES = [
   "Basic Meditation",
   "Healing",
@@ -5,6 +7,14 @@ export const FREE_MEDITATION_CATEGORIES = [
   "Babaji Wisdom",
   "Manifestation"
 ];
+
+export function normalizeSacredAccessKey(value: string) {
+  return value.replace(/[^0-9]/g, "").slice(0, SACRED_KEY_LENGTH);
+}
+
+export function isValidSacredAccessKey(value: string) {
+  return value.length === SACRED_KEY_LENGTH && /^[0-9]+$/.test(value);
+}
 
 export const HOME_SHORTCUTS = [
   "Healing",

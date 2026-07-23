@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getYouTubeThumbnailUrl } from "@sacred-circle/lib";
-import { CalendarPlus, Download, KeyRound, Music2, Plus, Search, ShieldCheck, Trash2, Upload, Video } from "lucide-react";
+import {
+  getYouTubeThumbnailUrl,
+  isValidSacredAccessKey,
+  normalizeSacredAccessKey,
+  SACRED_KEY_LENGTH
+} from "@sacred-circle/lib";
+import { Bell, CalendarPlus, Download, KeyRound, Music2, Plus, Search, Send, ShieldCheck, Trash2, Upload, Video } from "lucide-react";
 import { FieldConfig, ModuleConfig } from "@/lib/adminConfig";
 import { supabase } from "@/lib/supabase";
 import { AdminLayout } from "./AdminLayout";
@@ -55,7 +60,7 @@ function newRow(config: ModuleConfig, preset?: "next-sunday" | "public-audio" | 
   if (config.table === "videos") {
     return {
       ...row,
-      category: "Spirituality",
+      category: "Normal Sessions",
       display_order: 0,
       migration_status: "ready",
       status: "published"
@@ -150,6 +155,9 @@ export function CrudPage({ config, configs }: { config: ModuleConfig; configs?: 
         if (payload.audio_group === "free") payload.access_type = "public";
         if (["online_shivir", "offline_shivir"].includes(payload.audio_group)) payload.access_type = "session_protected";
         payload.category = payload.audio_group === "offline_shivir" ? "Offline Shivir" : payload.audio_group === "online_shivir" ? "Online Shivir" : "Free";
+      }
+      if (activeConfig.table === "session_access_codes" && (!payload.id || payload.__plain_code) && !isValidSacredAccessKey(String(payload.__plain_code || ""))) {
+        throw new Error("The Sacred Access Key must contain exactly 6 numbers.");
       }
 
       if (activeConfig.table === "videos" && payload.youtube_url) {
@@ -265,6 +273,7 @@ export function CrudPage({ config, configs }: { config: ModuleConfig; configs?: 
           {activeConfig.table === "sessions" ? "Next Sunday Session" : "New"}
         </button>
       </div>
+      {activeConfig.table === "announcements" ? <PushNotificationComposer /> : null}
       <ModuleGuide table={activeConfig.table} onCreate={startNew} />
       {configs?.length ? (
         <div className="tab-row">
@@ -355,6 +364,202 @@ export function CrudPage({ config, configs }: { config: ModuleConfig; configs?: 
   );
 }
 
+type NotificationHistoryRow = {
+  id: string;
+  title: string;
+  message: string;
+  recipient_count: number;
+  accepted_count: number;
+  failed_count: number;
+  status: string;
+  sent_at: string;
+};
+
+type NotificationSession = {
+  id: string;
+  title: string;
+  session_date: string;
+  status: string;
+};
+
+function PushNotificationComposer() {
+  const [title, setTitle] = useState("Sunday Meditation Reminder");
+  const [message, setMessage] = useState("Join us this Sunday at 4:00 PM IST for meditation, healing and spiritual guidance.");
+  const [sessionId, setSessionId] = useState("");
+  const [sessions, setSessions] = useState<NotificationSession[]>([]);
+  const [history, setHistory] = useState<NotificationHistoryRow[]>([]);
+  const [subscriberCount, setSubscriberCount] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState("");
+
+  async function loadNotificationData() {
+    if (!supabase) return;
+    const [sessionResult, historyResult, subscriberResult] = await Promise.all([
+      supabase
+        .from("sessions")
+        .select("id,title,session_date,status")
+        .in("status", ["upcoming", "live"])
+        .order("session_date", { ascending: true })
+        .limit(50),
+      supabase
+        .from("notification_history")
+        .select("id,title,message,recipient_count,accepted_count,failed_count,status,sent_at")
+        .order("sent_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("notification_preferences")
+        .select("user_id", { count: "exact", head: true })
+        .eq("sunday_session_enabled", true)
+    ]);
+    if (!sessionResult.error) setSessions((sessionResult.data || []) as NotificationSession[]);
+    if (!historyResult.error) setHistory((historyResult.data || []) as NotificationHistoryRow[]);
+    if (!subscriberResult.error) setSubscriberCount(subscriberResult.count || 0);
+  }
+
+  useEffect(() => {
+    void loadNotificationData();
+  }, []);
+
+  async function sendNotification() {
+    const cleanTitle = title.trim();
+    const cleanMessage = message.trim();
+    if (cleanTitle.length < 3 || cleanTitle.length > 80) {
+      window.alert("Use a title between 3 and 80 characters.");
+      return;
+    }
+    if (cleanMessage.length < 3 || cleanMessage.length > 240) {
+      window.alert("Use a message between 3 and 240 characters.");
+      return;
+    }
+    if (!supabase) {
+      window.alert("Supabase is not configured for this admin build.");
+      return;
+    }
+    if (!window.confirm("Send this notification now to all members who enabled Sunday reminders?")) return;
+
+    setBusy(true);
+    setResult("");
+    try {
+      const { data, error } = await supabase.functions.invoke("send-push-notification", {
+        body: {
+          title: cleanTitle,
+          body: cleanMessage,
+          session_id: sessionId || null
+        }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(String(data.error));
+
+      const recipients = Number(data?.recipient_count || 0);
+      const accepted = Number(data?.accepted_count || 0);
+      const failed = Number(data?.failed_count || 0);
+      setResult(
+        recipients
+          ? `Expo accepted ${accepted} of ${recipients} device notification${recipients === 1 ? "" : "s"}${failed ? `; ${failed} failed immediately` : ""}.`
+          : "No opted-in mobile devices are registered yet, so nothing was sent."
+      );
+      await loadNotificationData();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Unable to send this notification.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="push-composer card">
+      <div className="push-composer-head">
+        <div className="push-composer-icon"><Bell size={24} /></div>
+        <div>
+          <p className="eyebrow">Push notification</p>
+          <h3>Notify Sunday members</h3>
+          <p>Send one concise reminder to members who enabled Sunday notifications in the installed app.</p>
+        </div>
+        <div className="subscriber-count">
+          <strong>{subscriberCount === null ? "—" : subscriberCount}</strong>
+          <span>opted-in member{subscriberCount === 1 ? "" : "s"}</span>
+        </div>
+      </div>
+      <div className="push-form-grid">
+        <label>
+          <span>Notification title</span>
+          <input className="input" maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} />
+          <small>{title.length}/80 characters</small>
+        </label>
+        <label>
+          <span>Linked Sunday session (optional)</span>
+          <select className="select" value={sessionId} onChange={(event) => setSessionId(event.target.value)}>
+            <option value="">No linked session</option>
+            {sessions.map((session) => (
+              <option key={session.id} value={session.id}>
+                {session.title} · {formatNotificationDate(session.session_date)}
+              </option>
+            ))}
+          </select>
+          <small>Audience is always Sunday reminder subscribers.</small>
+        </label>
+        <label className="push-message-field">
+          <span>Message</span>
+          <textarea className="textarea" rows={4} maxLength={240} value={message} onChange={(event) => setMessage(event.target.value)} />
+          <small>{message.length}/240 characters</small>
+        </label>
+      </div>
+      <div className="push-actions">
+        <p>Notifications are sent immediately. Expo acceptance means the push service accepted the request; final device delivery can still depend on Apple, Google and the member&apos;s phone settings.</p>
+        <button className="button gold" disabled={busy} onClick={() => { void sendNotification(); }}>
+          <Send size={16} />
+          {busy ? "Sending..." : "Send Notification"}
+        </button>
+      </div>
+      {result ? <div className="push-result" role="status">{result}</div> : null}
+      <div className="push-history">
+        <h3>Recent sends</h3>
+        {history.length ? (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Sent</th>
+                  <th>Notification</th>
+                  <th>Devices</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((item) => (
+                  <tr key={item.id}>
+                    <td>{formatNotificationDate(item.sent_at)}</td>
+                    <td><strong>{item.title}</strong><br /><small>{item.message}</small></td>
+                    <td>{item.accepted_count}/{item.recipient_count} accepted{item.failed_count ? ` · ${item.failed_count} failed` : ""}</td>
+                    <td><span className={`push-status ${item.status}`}>{formatPushStatus(item.status)}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : <p className="empty-history">No Sunday push notifications have been sent yet.</p>}
+      </div>
+    </section>
+  );
+}
+
+function formatNotificationDate(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value || "—";
+  return parsed.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+function formatPushStatus(value: string) {
+  if (value === "no_recipients") return "No devices";
+  return value ? value.slice(0, 1).toUpperCase() + value.slice(1) : "Unknown";
+}
+
 function YouTubeThumbnailTool({ editing, setEditing }: { editing: any; setEditing: (next: any) => void }) {
   const thumbnail = getYouTubeThumbnailUrl(editing.youtube_url, "hqdefault");
   return (
@@ -394,7 +599,7 @@ function ModuleGuide({
         <div className="workflow-step">
           <KeyRound size={20} />
           <strong>2. Add Sacred Access Key</strong>
-          <span>The key belongs to this session only. It unlocks only this Sunday recording.</span>
+          <span>The key authorizes this Sunday recording and must be entered for each new playback.</span>
         </div>
         <div className="workflow-step">
           <Music2 size={20} />
@@ -460,6 +665,9 @@ function renderField(field: FieldConfig, editing: any, setEditing: (next: any) =
         {relationOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
     );
+  }
+  if (field.key === "__plain_code") {
+    return <input className="input" type="text" inputMode="numeric" maxLength={SACRED_KEY_LENGTH} pattern="[0-9]{6}" value={value || ""} onChange={(event) => update(normalizeSacredAccessKey(event.target.value))} />;
   }
   return <input className="input" type={field.type === "number" ? "number" : field.type === "date" ? "date" : field.type === "datetime" ? "datetime-local" : "text"} value={formatInputValue(field, value)} onChange={(event) => update(event.target.value)} />;
 }

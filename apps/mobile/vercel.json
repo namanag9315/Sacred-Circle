@@ -7,6 +7,30 @@
   "cleanUrls": true,
   "rewrites": [
     {
+      "source": "/about-sacred-circle",
+      "destination": "/about-sacred-circle.html"
+    },
+    {
+      "source": "/privacy-policy",
+      "destination": "/privacy-policy.html"
+    },
+    {
+      "source": "/terms-of-use",
+      "destination": "/terms-of-use.html"
+    },
+    {
+      "source": "/wellness-disclaimer",
+      "destination": "/wellness-disclaimer.html"
+    },
+    {
+      "source": "/account-deletion",
+      "destination": "/account-deletion.html"
+    },
+    {
+      "source": "/support",
+      "destination": "/support.html"
+    },
+    {
       "source": "/:path*",
       "destination": "/"
     }

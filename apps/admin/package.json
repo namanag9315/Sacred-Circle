@@ -14,7 +14,7 @@
     "@sacred-circle/ui": "*",
     "@supabase/supabase-js": "2.109.0",
     "lucide-react": "1.22.0",
-    "next": "16.2.9",
+    "next": "^16.2.11",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
@@ -23,7 +23,7 @@
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "eslint": "^9.39.0",
-    "eslint-config-next": "16.2.9",
+    "eslint-config-next": "^16.2.11",
     "typescript": "~6.0.3"
   }
 }

@@ -35,7 +35,6 @@ if (!supabaseUrl || !serviceRoleKey) {
 
 async function main() {
   console.log("Connecting to Supabase Auth Admin API:", supabaseUrl);
-  console.log("Using service role key prefix:", serviceRoleKey.substring(0, 15) + "...");
   
   const response = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
     headers: {
@@ -59,11 +58,11 @@ async function main() {
     console.log(`- ID: ${user.id}, Email: ${user.email}, Provider: ${user.app_metadata?.provider}`);
   });
   
-  const adminUser = users.find(u => u.email === 'admin@sacredcircle.com');
+  const adminUser = users.find(u => u.email === 'sacredcircle45@gmail.com');
   if (!adminUser) {
-    console.log("\n❌ admin@sacredcircle.com does NOT exist in auth.users!");
+    console.log("\n❌ The Sacred Circle admin does not exist in auth.users.");
   } else {
-    console.log("\n✅ admin@sacredcircle.com exists in auth.users.");
+    console.log("\n✅ The Sacred Circle admin exists in auth.users.");
   }
 }
 

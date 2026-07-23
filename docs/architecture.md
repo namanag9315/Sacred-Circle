@@ -23,16 +23,16 @@ The app intentionally excludes in-app video calling, social feeds, member direct
 - Presentation: simple light React Native screens and reusable premium components
 - Domain: shared TypeScript contracts, access helpers, constants, and seed data
 - Data: Supabase repository helpers with explicit empty/error states and no production demo fallback
-- Security: RLS, admin role policies, session-specific unlock RPC, and signed media Edge Function
+- Security: RLS, admin role policies, per-playback Sacred Access Key authorization, and signed media Edge Function
 - Notifications: push-token tables and local notification helper structure for later useful reminders
 
 ## Access Model
 
 - Public meditation audios are available to logged-in users.
-- Protected Sunday healing recordings require `user_session_unlocks` for the linked `session_id`.
+- Protected Sunday healing recordings require the six-digit Sacred Access Key for each new playback request. A successful check does not create a permanent entitlement.
 - The Sacred Access Key is never a weekly app password.
 - The code is hashed in `session_access_codes.code_hash`.
-- The app requests a protected media URL through `supabase/functions/get-resource-url`, which verifies access and returns a short-lived signed URL.
+- The app requests a protected media URL through `supabase/functions/get-resource-url`, which verifies the key against the resource's linked session and returns a time-limited signed URL.
 
 ## Admin Access
 

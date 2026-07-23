@@ -4,6 +4,7 @@ import {
   type AppSetting,
   type ContactSubmission,
   type EventRegistration,
+  type NotificationPreference,
   type PageContent,
   type Profile,
   type Program,
@@ -11,7 +12,6 @@ import {
   type SacredEvent,
   type Session,
   type SessionRegistration,
-  type UserSessionUnlock,
   type Video
 } from "@sacred-circle/lib";
 import { supabase } from "../lib/supabase";
@@ -166,15 +166,6 @@ export async function listMySessionRegistrations(userId: string): Promise<Sessio
   return error || !data ? [] : (data as SessionRegistration[]);
 }
 
-export async function listMyUnlocks(userId: string): Promise<UserSessionUnlock[]> {
-  if (!supabase) return [];
-  const { data, error } = await supabase
-    .from("user_session_unlocks")
-    .select("*")
-    .eq("user_id", userId);
-  return error || !data ? [] : (data as UserSessionUnlock[]);
-}
-
 export async function unlockSessionRecording(sessionId: string, code: string) {
   if (!supabase) return "service_unavailable";
 
@@ -196,6 +187,44 @@ export async function unlockSessionRecording(sessionId: string, code: string) {
     return result;
   }
   return "invalid_code";
+}
+
+export type SacredKeyRecordingLookup = {
+  status: "matched" | "invalid_code" | "expired_code" | "rate_limited" | "auth_required" | "recording_unavailable" | "service_unavailable";
+  recordings: Resource[];
+};
+
+export async function findRecordingsBySacredKey(code: string): Promise<SacredKeyRecordingLookup> {
+  if (!supabase) return { status: "service_unavailable", recordings: [] };
+
+  const { data, error } = await supabase.rpc("find_recordings_by_sacred_key", {
+    p_code: code.trim()
+  });
+
+  if (error) {
+    const message = error.message.toLowerCase();
+    if (message.includes("rate_limited")) return { status: "rate_limited", recordings: [] };
+    if (message.includes("auth") || message.includes("jwt")) return { status: "auth_required", recordings: [] };
+    return { status: "service_unavailable", recordings: [] };
+  }
+
+  const payload = data && typeof data === "object" && !Array.isArray(data)
+    ? data as { status?: unknown; recordings?: unknown }
+    : {};
+  const allowedStatuses: SacredKeyRecordingLookup["status"][] = [
+    "matched",
+    "invalid_code",
+    "expired_code",
+    "rate_limited",
+    "auth_required",
+    "recording_unavailable"
+  ];
+  const status = allowedStatuses.includes(payload.status as SacredKeyRecordingLookup["status"])
+    ? payload.status as SacredKeyRecordingLookup["status"]
+    : "service_unavailable";
+  const recordings = Array.isArray(payload.recordings) ? payload.recordings as Resource[] : [];
+
+  return { status, recordings };
 }
 
 export async function registerForSession(userId: string, sessionId: string) {
@@ -237,12 +266,37 @@ export async function registerPushToken(input: { user_id: string; expo_push_toke
   return true;
 }
 
-export async function getPlayableResourceUrl(resource: Resource) {
+export async function getNotificationPreference(userId: string): Promise<NotificationPreference | null> {
+  const client = requireDataClient();
+  const { data, error } = await client
+    .from("notification_preferences")
+    .select("user_id,sunday_session_enabled,created_at,updated_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data as NotificationPreference | null;
+}
+
+export async function setSundaySessionNotifications(userId: string, enabled: boolean): Promise<NotificationPreference> {
+  const client = requireDataClient();
+  const { data, error } = await client
+    .from("notification_preferences")
+    .upsert({ user_id: userId, sunday_session_enabled: enabled }, { onConflict: "user_id" })
+    .select("user_id,sunday_session_enabled,created_at,updated_at")
+    .single();
+  if (error) throw error;
+  return data as NotificationPreference;
+}
+
+export async function getPlayableResourceUrl(resource: Resource, accessCode?: string) {
   if (resource.access_type === "public" && resource.external_url) return resource.external_url;
   const client = requireDataClient();
 
   const { data, error } = await client.functions.invoke("get-resource-url", {
-    body: { resource_id: resource.id }
+    body: {
+      resource_id: resource.id,
+      ...(resource.access_type === "session_protected" && accessCode ? { access_code: accessCode.trim() } : {})
+    }
   });
   if (error) throw error;
   const url = typeof data?.url === "string" ? data.url : "";

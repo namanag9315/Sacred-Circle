@@ -17,15 +17,18 @@ const mobileDir = join(repoRoot, "apps", "mobile");
 const distDir = join(mobileDir, "dist");
 const publicDir = join(mobileDir, "public");
 const starterAsset = join(mobileDir, "src", "assets", "starter", "starter-background.png");
-const flameAsset = join(mobileDir, "src", "assets", "starter", "sacred-flame-logo-optimized.png");
+const appIconAsset = join(mobileDir, "src", "assets", "branding", "app-icon.png");
+const legalContentPath = join(mobileDir, "src", "content", "legal-content.json");
 const indexPath = join(distDir, "index.html");
 
-const requiredFiles = [indexPath, starterAsset, flameAsset];
+const requiredFiles = [indexPath, starterAsset, appIconAsset, legalContentPath];
 for (const path of requiredFiles) {
   if (!existsSync(path)) {
     throw new Error(`Mobile web preparation is missing ${relative(repoRoot, path)}.`);
   }
 }
+
+const legalContent = JSON.parse(readFileSync(legalContentPath, "utf8"));
 
 const manifest = {
   id: "/",
@@ -43,9 +46,9 @@ const manifest = {
   background_color: "#FFF9F0",
   categories: ["health", "lifestyle", "education"],
   icons: [
-    { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-    { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-    { src: "/icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
+    { src: "/icons/sacred-circle-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+    { src: "/icons/sacred-circle-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+    { src: "/icons/sacred-circle-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
   ],
   prefer_related_applications: false
 };
@@ -70,6 +73,7 @@ await Promise.all([
   generateIcons(distDir),
   generateStartupImages(distDir)
 ]);
+generateLegalPages(distDir, legalContent);
 
 writeJson(join(publicDir, "manifest.json"), manifest);
 writeJson(join(distDir, "manifest.json"), manifest);
@@ -81,6 +85,14 @@ html = html.replace(
   '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />'
 );
 html = html.replace(/<title>[^<]*<\/title>/, "<title>Sacred Circle</title>");
+html = html.replace(
+  /<link rel="icon" href="\/favicon\.ico"\s*\/?>/,
+  [
+    '<link rel="icon" type="image/png" sizes="32x32" href="/icons/sacred-circle-32.png" />',
+    '  <link rel="icon" type="image/png" sizes="16x16" href="/icons/sacred-circle-16.png" />',
+    '  <link rel="shortcut icon" href="/icons/sacred-circle-32.png" />'
+  ].join("\n")
+);
 
 const startupLinks = startupImages.map((image) => {
   const filename = startupFilename(image);
@@ -100,8 +112,8 @@ const headMarkup = [
   '  <meta name="apple-mobile-web-app-status-bar-style" content="default" />',
   '  <meta name="format-detection" content="telephone=no, address=no, email=no" />',
   '  <link rel="manifest" href="/manifest.json" />',
-  '  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180.png" />',
-  '  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />',
+  '  <link rel="apple-touch-icon" sizes="180x180" href="/icons/sacred-circle-180.png" />',
+  '  <link rel="icon" type="image/png" sizes="192x192" href="/icons/sacred-circle-192.png" />',
   ...startupLinks,
   "<!-- /Sacred Circle PWA -->"
 ].join("\n");
@@ -205,15 +217,17 @@ async function generateIcons(outputDir) {
   const iconDir = join(outputDir, "icons");
   mkdirSync(iconDir, { recursive: true });
   await Promise.all([
-    renderOpaqueWebIcon(join(iconDir, "apple-touch-icon-180.png"), 180),
-    renderOpaqueWebIcon(join(iconDir, "icon-192.png"), 192),
-    renderOpaqueWebIcon(join(iconDir, "icon-512.png"), 512),
-    renderMaskableWebIcon(join(iconDir, "icon-maskable-512.png"), 512)
+    renderOpaqueWebIcon(join(iconDir, "sacred-circle-16.png"), 16),
+    renderOpaqueWebIcon(join(iconDir, "sacred-circle-32.png"), 32),
+    renderOpaqueWebIcon(join(iconDir, "sacred-circle-180.png"), 180),
+    renderOpaqueWebIcon(join(iconDir, "sacred-circle-192.png"), 192),
+    renderOpaqueWebIcon(join(iconDir, "sacred-circle-512.png"), 512),
+    renderMaskableWebIcon(join(iconDir, "sacred-circle-maskable-512.png"), 512)
   ]);
 }
 
 async function renderOpaqueWebIcon(destination, size) {
-  await sharp(flameAsset)
+  await sharp(appIconAsset)
     .resize(size, size, { fit: "cover" })
     .flatten({ background: "#FFF9F0" })
     .png({ compressionLevel: 9, palette: true })
@@ -225,7 +239,7 @@ async function renderMaskableWebIcon(destination, size) {
   const mask = Buffer.from(
     `<svg width="${logoSize}" height="${logoSize}"><circle cx="${logoSize / 2}" cy="${logoSize / 2}" r="${logoSize / 2}" fill="#fff" /></svg>`
   );
-  const logo = await sharp(flameAsset)
+  const logo = await sharp(appIconAsset)
     .resize(logoSize, logoSize, { fit: "cover" })
     .composite([{ input: mask, blend: "dest-in" }])
     .png({ compressionLevel: 9 })
@@ -256,6 +270,111 @@ function startupFilename(image) {
 function writeJson(path, value) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function generateLegalPages(outputDir, content) {
+  const pages = [
+    {
+      slug: "about-sacred-circle",
+      title: content.about.title,
+      subtitle: content.about.subtitle,
+      sections: [{ heading: "About", paragraphs: [content.about.intro] }, ...content.about.sections]
+    },
+    ...Object.values(content.documents)
+  ];
+
+  for (const page of pages) {
+    writeFileSync(join(outputDir, `${page.slug}.html`), createLegalPageHtml(page, content));
+  }
+}
+
+function createLegalPageHtml(page, content) {
+  const sections = page.sections.map((section) => {
+    const paragraphs = (section.paragraphs || []).map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("\n");
+    const bullets = section.bullets?.length
+      ? `<ul>${section.bullets.map((bullet) => `<li>${escapeHtml(bullet)}</li>`).join("\n")}</ul>`
+      : "";
+    return `<section><h2>${escapeHtml(section.heading)}</h2>${paragraphs}${bullets}</section>`;
+  }).join("\n");
+  const deletionAction = page.slug === "account-deletion"
+    ? `<a class="primary-action" href="mailto:${encodeURIComponent(content.contactEmail)}?subject=Delete%20my%20Sacred%20Circle%20account">Request account deletion</a>`
+    : "";
+  const supportAction = page.slug === "support"
+    ? `<a class="primary-action" href="mailto:${encodeURIComponent(content.contactEmail)}?subject=Sacred%20Circle%20app%20support">Email support</a>`
+    : "";
+  const canonicalUrl = `https://sacred-circle-app.vercel.app/${page.slug}`;
+
+  return `<!doctype html>
+<html lang="en-IN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#FFF9F0" />
+  <meta name="description" content="${escapeHtml(page.subtitle)}" />
+  <meta name="robots" content="index,follow" />
+  <link rel="canonical" href="${canonicalUrl}" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/sacred-circle-32.png" />
+  <title>${escapeHtml(page.title)} | Sacred Circle</title>
+  <style>
+    :root { color-scheme: light; --navy: #111d3a; --gold: #b97811; --ink: #39445b; --ivory: #fff9f0; --line: rgba(185,120,17,.22); }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: radial-gradient(circle at top, #fffefb 0, var(--ivory) 48%, #f7eddd 100%); color: var(--ink); font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.7; }
+    a { color: inherit; }
+    .shell { width: min(860px, calc(100% - 28px)); margin: 0 auto; padding: 24px 0 54px; }
+    .brand { display: flex; align-items: center; gap: 12px; color: var(--navy); font-weight: 900; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; }
+    .brand img { width: 48px; height: 48px; border-radius: 50%; }
+    header { padding: 54px 0 28px; text-align: center; }
+    .eyebrow { color: var(--gold); font-size: .78rem; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+    h1, h2 { color: var(--navy); font-family: Georgia, "Times New Roman", serif; }
+    h1 { margin: 8px 0 10px; font-size: clamp(2.1rem, 7vw, 3.6rem); line-height: 1.1; }
+    .subtitle { max-width: 650px; margin: 0 auto; font-size: 1.05rem; }
+    .updated { color: #687087; font-size: .86rem; margin-top: 12px; }
+    section { margin: 14px 0; padding: clamp(20px, 4vw, 32px); border: 1px solid var(--line); border-radius: 22px; background: rgba(255,255,255,.82); box-shadow: 0 16px 44px rgba(50,38,20,.07); }
+    h2 { margin: 0 0 12px; font-size: clamp(1.3rem, 4vw, 1.75rem); line-height: 1.3; }
+    p { margin: 0 0 12px; }
+    p:last-child { margin-bottom: 0; }
+    ul { margin: 0; padding-left: 1.25rem; }
+    li { margin: 8px 0; padding-left: 4px; }
+    li::marker { color: var(--gold); }
+    .primary-action { display: flex; width: fit-content; min-height: 50px; margin: 24px auto; padding: 12px 22px; align-items: center; justify-content: center; border-radius: 999px; background: var(--navy); color: #fff; font-weight: 900; text-decoration: none; }
+    nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px; margin: 30px auto 12px; font-size: .88rem; }
+    nav a { color: var(--gold); font-weight: 800; text-decoration: none; }
+    footer { padding-top: 12px; color: #687087; font-size: .82rem; text-align: center; }
+    @media (max-width: 520px) { .shell { width: min(100% - 20px, 860px); padding-top: 14px; } header { padding: 36px 8px 20px; } section { border-radius: 18px; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <a class="brand" href="/"><img src="/icons/sacred-circle-192.png" alt="Sacred Circle logo" /><span>Sacred Circle</span></a>
+    <header>
+      <div class="eyebrow">Sacred Circle</div>
+      <h1>${escapeHtml(page.title)}</h1>
+      <p class="subtitle">${escapeHtml(page.subtitle)}</p>
+      <p class="updated">Last updated ${escapeHtml(content.lastUpdated)}</p>
+    </header>
+    ${sections}
+    ${deletionAction}${supportAction}
+    <nav aria-label="Sacred Circle information">
+      <a href="/about-sacred-circle">About</a>
+      <a href="/privacy-policy">Privacy</a>
+      <a href="/terms-of-use">Terms</a>
+      <a href="/wellness-disclaimer">Wellness Disclaimer</a>
+      <a href="/account-deletion">Account Deletion</a>
+      <a href="/support">Support</a>
+    </nav>
+    <footer>Contact <a href="mailto:${escapeHtml(content.contactEmail)}">${escapeHtml(content.contactEmail)}</a> · © ${new Date().getFullYear()} Sacred Circle</footer>
+  </main>
+</body>
+</html>\n`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function removePreviousPwaMarkup(input) {
@@ -312,6 +431,7 @@ function collectPrecacheFiles(rootDir) {
 function isAppShellFile(path) {
   return (
     ["index.html", "manifest.json", "favicon.ico"].includes(path) ||
+    path.endsWith(".html") ||
     path.startsWith("_expo/static/js/") ||
     path.startsWith("icons/") ||
     path.includes("/assets/fonts/") ||
@@ -323,6 +443,7 @@ function createServiceWorker(version, urls) {
   return `/* Sacred Circle generated service worker. */
 const CACHE_NAME = "sacred-circle-${version}";
 const APP_SHELL = ${JSON.stringify(urls, null, 2)};
+const STATIC_DOCUMENTS = new Set(["/about-sacred-circle", "/privacy-policy", "/terms-of-use", "/wellness-disclaimer", "/account-deletion", "/support"]);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -348,15 +469,17 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === "navigate") {
+    const normalizedPath = url.pathname.replace(/\/$/, "") || "/";
+    const fallbackPath = STATIC_DOCUMENTS.has(normalizedPath) ? normalizedPath + ".html" : "/index.html";
     event.respondWith(
       fetch(request)
         .then((response) => {
           if (response.ok) {
-            caches.open(CACHE_NAME).then((cache) => cache.put("/index.html", response.clone()));
+            caches.open(CACHE_NAME).then((cache) => cache.put(fallbackPath, response.clone()));
           }
           return response;
         })
-        .catch(() => caches.match("/index.html"))
+        .catch(() => caches.match(fallbackPath))
     );
     return;
   }

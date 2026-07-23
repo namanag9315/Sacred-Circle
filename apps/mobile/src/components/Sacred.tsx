@@ -5,6 +5,7 @@ import {
   Easing,
   Image,
   ImageBackground,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -87,7 +88,23 @@ export function Screen({
       <SubtleMandalaWatermark animated={Platform.OS !== "web"} size={240} top={-60} right={-90} opacity={0.16} />
       <SubtleMandalaWatermark size={250} bottom={-80} left={-100} opacity={0.10} />
       {bottomImage ? <ImageBackground source={bottomImage} resizeMode="cover" style={styles.bottomLake} imageStyle={styles.bottomLakeImage} /> : null}
-      {scroll ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>{content}</ScrollView> : content}
+      {scroll ? (
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={0}
+          style={styles.keyboardAvoider}
+        >
+          <ScrollView
+            automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+            keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scroll}
+          >
+            {content}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      ) : content}
     </View>
   );
 }
@@ -401,10 +418,9 @@ export function SacredAccessKeyCard({ onUnlock }: { onUnlock?: () => void }) {
         </View>
       </View>
       <View style={[styles.keyBoxes, compact && styles.keyBoxesCompact]}>
-        {[0, 1, 2, 3].map((item) => <View key={item} style={[styles.keyBox, compact && styles.keyBoxCompact]}><Text style={[styles.keyDot, compact && styles.keyDotCompact]}>•</Text></View>)}
-        {!compact ? <View style={[styles.keyBox, styles.keyBoxActive]}><KeyRound color={colors.gold} size={25} /></View> : null}
+        {Array.from({ length: 6 }, (_, item) => <View key={item} style={[styles.keyBox, compact && styles.keyBoxCompact, item === 5 && styles.keyBoxActive]}><Text style={[styles.keyDot, compact && styles.keyDotCompact]}>•</Text></View>)}
       </View>
-      <SecondaryButton gold label="Unlock Recording" icon={compact ? undefined : <LockKeyhole color="#FFFFFF" size={18} />} onPress={onUnlock} style={compact && styles.compactGoldButton} textStyle={compact && styles.compactGoldButtonText} />
+      <SecondaryButton gold label="Open Recording" icon={compact ? undefined : <LockKeyhole color="#FFFFFF" size={18} />} onPress={onUnlock} style={compact && styles.compactGoldButton} textStyle={compact && styles.compactGoldButtonText} />
       <View style={[styles.cardFooterRow, compact && styles.cardFooterRowHidden]}>
         <CalendarDays color={colors.goldSoft} size={15} />
         <Text style={styles.cardFooterText}>Key shared during the live Sunday session</Text>
@@ -495,7 +511,7 @@ export function CommunityCard({ onJoin }: { onJoin?: () => void }) {
     <View style={[styles.communityCard, compact && styles.communityCardCompact]}>
       <View>
         <Text style={[styles.communityTitle, compact && styles.communityTitleCompact]}>{compact ? "Join Our WhatsApp\nCommunity" : "Join Our Community"}</Text>
-        <Text style={[styles.communityText, compact && styles.communityTextCompact]}>{compact ? "Connect with fellow seekers on the path of inner awakening." : "Connect with fellow seekers\nin our WhatsApp group."}</Text>
+        <Text style={[styles.communityText, compact && styles.communityTextCompact]}>Join us to receive the session link and stay updated with upcoming events.</Text>
         <Pressable onPress={onJoin} style={[styles.communityButton, compact && styles.communityButtonCompact]}><Text style={styles.communityButtonText}>Join Now →</Text></Pressable>
       </View>
       {!compact ? <IconCircle size={74} pale><MessageCircle color={colors.goldSoft} size={42} /></IconCircle> : null}
@@ -540,6 +556,7 @@ export const fieldIcons = {
 };
 
 const styles = StyleSheet.create({
+  keyboardAvoider: { flex: 1 },
   screen: { flex: 1, overflow: "hidden", backgroundColor: colors.background },
   scroll: { flexGrow: 1 },
   content: { width: "100%", maxWidth: 1032, alignSelf: "center", paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: 124 },

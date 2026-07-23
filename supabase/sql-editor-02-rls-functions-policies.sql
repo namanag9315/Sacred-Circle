@@ -30,8 +30,14 @@ security definer
 set search_path = public
 as $$
   select exists (
-    select 1 from public.profiles
-    where id = check_user and role = 'admin'
+    select 1
+    from public.profiles profile
+    join auth.users auth_user on auth_user.id = profile.id
+    where profile.id = check_user
+      and profile.role = 'admin'
+      and lower(profile.email) = 'sacredcircle45@gmail.com'
+      and lower(coalesce(auth_user.email, '')) = 'sacredcircle45@gmail.com'
+      and auth_user.email_confirmed_at is not null
   );
 $$;
 
@@ -50,14 +56,6 @@ as $$
       and (
         r.access_type = 'public'
         or public.is_admin(check_user)
-        or (
-          r.access_type = 'session_protected'
-          and r.session_id is not null
-          and exists (
-            select 1 from public.user_session_unlocks usu
-            where usu.user_id = check_user and usu.session_id = r.session_id
-          )
-        )
       )
   );
 $$;
@@ -76,27 +74,24 @@ declare
 begin
   if caller_id is null then return 'auth_required'; end if;
 
-  perform pg_advisory_xact_lock(hashtextextended(caller_id::text || ':' || p_session_id::text, 0));
-
-  if exists (
-    select 1 from public.user_session_unlocks
-    where user_id = caller_id and session_id = p_session_id
-  ) then
-    return 'already_unlocked';
-  end if;
+  perform pg_advisory_xact_lock(hashtextextended(caller_id::text, 0));
 
   delete from public.session_unlock_attempts
   where user_id = caller_id
-    and session_id = p_session_id
     and failed_at < now() - interval '24 hours';
 
   select count(*)::integer into recent_failures
   from public.session_unlock_attempts
   where user_id = caller_id
-    and session_id = p_session_id
     and failed_at >= now() - interval '15 minutes';
 
   if recent_failures >= 5 then return 'rate_limited'; end if;
+
+  if coalesce(p_code, '') !~ '^[0-9]{6}$' then
+    insert into public.session_unlock_attempts (user_id, session_id)
+    values (caller_id, p_session_id);
+    return 'invalid_code';
+  end if;
 
   select id into matched_code
   from public.session_access_codes
@@ -104,7 +99,7 @@ begin
     and is_active = true
     and (starts_at is null or now() >= starts_at)
     and (expires_at is null or now() <= expires_at)
-    and code_hash = extensions.crypt(coalesce(p_code, ''), code_hash)
+    and code_hash = extensions.crypt(p_code, code_hash)
   order by created_at desc
   limit 1;
 
@@ -116,7 +111,7 @@ begin
         and is_active = true
         and expires_at is not null
         and now() > expires_at
-        and code_hash = extensions.crypt(coalesce(p_code, ''), code_hash)
+        and code_hash = extensions.crypt(p_code, code_hash)
     ) into expired_match;
 
     insert into public.session_unlock_attempts (user_id, session_id)
@@ -126,12 +121,8 @@ begin
     return 'invalid_code';
   end if;
 
-  insert into public.user_session_unlocks (user_id, session_id, access_code_id)
-  values (caller_id, p_session_id, matched_code)
-  on conflict (user_id, session_id) do nothing;
-
   delete from public.session_unlock_attempts
-  where user_id = caller_id and session_id = p_session_id;
+  where user_id = caller_id;
 
   return 'unlocked';
 end;
@@ -140,6 +131,37 @@ $$;
 revoke all on function public.unlock_session_recording(uuid, text) from public;
 revoke all on function public.unlock_session_recording(uuid, text) from anon;
 grant execute on function public.unlock_session_recording(uuid, text) to authenticated;
+
+create or replace function public.authorize_resource_playback(p_resource_id uuid, p_code text)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  caller_id uuid := auth.uid();
+  resource_access_type text;
+  resource_session_id uuid;
+begin
+  if caller_id is null then return 'auth_required'; end if;
+
+  select access_type, session_id
+  into resource_access_type, resource_session_id
+  from public.resources
+  where id = p_resource_id
+    and status = 'published';
+
+  if not found then return 'resource_not_found'; end if;
+  if resource_access_type = 'public' or public.is_admin(caller_id) then return 'authorized'; end if;
+  if resource_access_type <> 'session_protected' or resource_session_id is null then return 'access_denied'; end if;
+
+  return public.unlock_session_recording(resource_session_id, p_code);
+end;
+$$;
+
+revoke all on function public.authorize_resource_playback(uuid, text) from public;
+revoke all on function public.authorize_resource_playback(uuid, text) from anon;
+grant execute on function public.authorize_resource_playback(uuid, text) to authenticated;
 
 create or replace function public.create_session_access_code(
   p_session_id uuid,
@@ -159,6 +181,9 @@ begin
   if not public.is_admin(auth.uid()) then
     raise exception 'admin_required';
   end if;
+  if coalesce(p_plain_code, '') !~ '^[0-9]{6}$' then
+    raise exception 'six_digit_code_required';
+  end if;
 
   insert into public.session_access_codes (session_id, code_hash, code_label, starts_at, expires_at)
   values (p_session_id, extensions.crypt(p_plain_code, extensions.gen_salt('bf')), p_code_label, p_starts_at, p_expires_at)
@@ -167,6 +192,10 @@ begin
   return new_id;
 end;
 $$;
+
+revoke all on function public.create_session_access_code(uuid, text, text, timestamptz, timestamptz) from public;
+revoke all on function public.create_session_access_code(uuid, text, text, timestamptz, timestamptz) from anon;
+grant execute on function public.create_session_access_code(uuid, text, text, timestamptz, timestamptz) to authenticated;
 
 create or replace function public.grant_session_unlock(p_user_id uuid, p_session_id uuid)
 returns void

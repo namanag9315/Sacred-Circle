@@ -1,17 +1,16 @@
-import type { Resource, UserSessionUnlock } from "./types";
+import type { Resource } from "./types";
 
 export interface AccessContext {
-  sessionUnlocks?: UserSessionUnlock[];
   isAdmin?: boolean;
 }
 
 export function canAccessResource(resource: Resource, context: AccessContext = {}) {
   if (resource.access_type === "public") return true;
   if (context.isAdmin) return true;
-  if (resource.access_type !== "session_protected") return false;
-  if (!resource.session_id) return false;
-
-  return Boolean(context.sessionUnlocks?.some((unlock) => unlock.session_id === resource.session_id));
+  // Protected recordings are authorized for one player session by the access
+  // key supplied when requesting the signed media URL. Historical unlock rows
+  // must never make a recording permanently available in the client.
+  return false;
 }
 
 export function getRecordingState(resource: Resource | undefined, context: AccessContext = {}) {

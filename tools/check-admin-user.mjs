@@ -56,13 +56,13 @@ async function main() {
   console.log("\n--- Profiles in Database ---");
   console.log(JSON.stringify(profiles, null, 2));
   
-  const adminProfile = profiles?.find(p => p.email === 'admin@sacredcircle.com');
+  const adminProfile = profiles?.find(p => p.email === 'sacredcircle45@gmail.com');
   if (!adminProfile) {
-    console.log("\n❌ admin@sacredcircle.com does NOT exist in public.profiles!");
+    console.log("\n❌ The Sacred Circle admin profile does not exist.");
   } else if (adminProfile.role !== 'admin') {
-    console.log(`\n❌ admin@sacredcircle.com exists but has role: "${adminProfile.role}" (must be "admin")!`);
+    console.log(`\n❌ The Sacred Circle profile has role: "${adminProfile.role}" (must be "admin")!`);
   } else {
-    console.log("\n✅ admin@sacredcircle.com is correctly configured in public.profiles as 'admin'.");
+    console.log("\n✅ The Sacred Circle account is correctly configured as the sole admin.");
   }
 }
 

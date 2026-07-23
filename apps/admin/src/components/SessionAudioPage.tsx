@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { isValidSacredAccessKey, normalizeSacredAccessKey, SACRED_KEY_LENGTH } from "@sacred-circle/lib";
 import { Calendar, Clock, Headphones, Pencil, RefreshCw, Search, Trash2, Upload } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { AdminLayout } from "./AdminLayout";
@@ -57,8 +58,6 @@ export function SessionAudioPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const [commonAccessKey, setCommonAccessKey] = useState("");
-  const [keyBusy, setKeyBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -132,32 +131,6 @@ export function SessionAudioPage() {
     if (duration) setDurationSeconds(duration);
   }
 
-  async function applyCommonAccessKey() {
-    setMessage("");
-    if (!/^\d{4}$/.test(commonAccessKey)) {
-      setMessage("Enter exactly four numbers for the common Sacred Access Key.");
-      return;
-    }
-    if (!supabase) {
-      setMessage("Supabase is not configured for this admin portal.");
-      return;
-    }
-
-    setKeyBusy(true);
-    try {
-      const { data, error } = await supabase.rpc("set_common_session_access_code", {
-        p_plain_code: commonAccessKey
-      });
-      if (error) throw error;
-      setMessage(`Sacred Access Key updated for ${Number(data || 0)} locked recordings.`);
-      setCommonAccessKey("");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to update the Sacred Access Key.");
-    } finally {
-      setKeyBusy(false);
-    }
-  }
-
   async function saveSessionAudio() {
     setMessage("");
     const sessionName = form.sessionName.trim();
@@ -187,8 +160,13 @@ export function SessionAudioPage() {
     }
 
     const accessKey = form.accessKey.trim();
-    if (audioGroup !== "free" && accessKey && !/^\d{4}$/.test(accessKey)) {
-      setMessage("The Sacred Access Key must contain exactly 4 numbers.");
+    const needsNewAccessKey = audioGroup !== "free" && (!editingRow || editingRow.access_type === "public");
+    if (needsNewAccessKey && !isValidSacredAccessKey(accessKey)) {
+      setMessage("Enter a unique 6-digit Sacred Access Key for this recording.");
+      return;
+    }
+    if (audioGroup !== "free" && accessKey && !isValidSacredAccessKey(accessKey)) {
+      setMessage("The Sacred Access Key must contain exactly 6 numbers.");
       return;
     }
 
@@ -410,28 +388,6 @@ export function SessionAudioPage() {
 
       <div className="three-step-strip"><span><b>1</b> Choose group</span><span><b>2</b> Add audio</span><span><b>3</b> Publish</span></div>
 
-      <section className="card common-key-card">
-        <div>
-          <p className="eyebrow">Common access</p>
-          <h3>Sacred Access Key</h3>
-          <p>Set one four-digit key for every currently locked Online or Offline Shivir recording.</p>
-        </div>
-        <div className="common-key-actions">
-          <input
-            aria-label="Common Sacred Access Key"
-            className="input"
-            inputMode="numeric"
-            maxLength={4}
-            value={commonAccessKey}
-            onChange={(event) => setCommonAccessKey(event.target.value.replace(/\D/g, "").slice(0, 4))}
-            placeholder="4-digit key"
-          />
-          <button className="button gold" disabled={keyBusy || commonAccessKey.length !== 4} onClick={() => void applyCommonAccessKey()}>
-            {keyBusy ? "Applying..." : "Apply to all locked recordings"}
-          </button>
-        </div>
-      </section>
-
       <section className="card simple-upload-card">
         <div className="simple-section-head">
           <div>
@@ -449,7 +405,7 @@ export function SessionAudioPage() {
               <option value="online_shivir">Online Shivir</option>
               <option value="offline_shivir">Offline Shivir</option>
             </select>
-            <small>Unlocked is created automatically for each member after they enter a valid Sacred Access Key.</small>
+            <small>Members enter the Sacred Access Key each time they start a protected recording.</small>
           </label>
           <label>
             Audio or session name
@@ -486,16 +442,19 @@ export function SessionAudioPage() {
               />
             </label>
           </div>
+          {form.audioGroup !== "free" ? (
+            <label className="full-field">
+              6-digit Sacred Access Key
+              <input className="input" inputMode="numeric" maxLength={SACRED_KEY_LENGTH} pattern="[0-9]{6}" value={form.accessKey} onChange={(event) => setForm({ ...form, accessKey: normalizeSacredAccessKey(event.target.value) })} placeholder="Example: 108108" />
+              <small>{editingRow?.access_type === "session_protected" ? "Leave blank to keep this session's current key, or enter a new unique key to replace it." : "Required. Use a different key for every protected session recording."}</small>
+            </label>
+          ) : null}
           {form.audioGroup !== "free" ? <details className="optional-details full-field">
-            <summary>Optional details <span>Zoom link, access key, or existing session</span></summary>
+            <summary>Optional details <span>Zoom link or existing session</span></summary>
             <div className="optional-grid">
               <label>
                 Zoom link
                 <input className="input" value={form.zoomLink} onChange={(event) => setForm({ ...form, zoomLink: event.target.value })} placeholder="https://zoom.us/..." />
-              </label>
-              <label>
-                4-digit Sacred Access Key
-                <input className="input" inputMode="numeric" maxLength={4} value={form.accessKey} onChange={(event) => setForm({ ...form, accessKey: event.target.value.replace(/\D/g, "").slice(0, 4) })} placeholder="Example: 1088" />
               </label>
               {sessions.length ? (
                 <label className="full-field">

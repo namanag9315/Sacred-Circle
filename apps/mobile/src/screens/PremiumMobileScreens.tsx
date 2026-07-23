@@ -1,7 +1,7 @@
 import {
+  SACRED_KEY_LENGTH,
   formatDuration,
   getRecordingState,
-  canAccessResource,
   getYouTubeThumbnailUrl,
   type Announcement,
   type Resource,
@@ -17,10 +17,12 @@ import {
   Alert,
   Image,
   ImageBackground,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   useWindowDimensions,
@@ -50,6 +52,7 @@ import {
   Play,
   Search,
   Settings,
+  ShieldCheck,
   SlidersHorizontal,
   Sparkles,
   Star,
@@ -65,13 +68,18 @@ import {
 } from "../components/Sacred";
 import { useAuth } from "../context/AuthContext";
 import {
+  findRecordingsBySacredKey,
+  getNotificationPreference,
   listAnnouncements,
   listEvents,
   listResources,
   listSessions,
   listSettings,
-  listVideos
+  listVideos,
+  registerPushToken,
+  setSundaySessionNotifications
 } from "../services/repository";
+import { getExpoPushToken } from "../services/notifications";
 import { colors, shadows } from "../theme";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import sunriseLotus from "../assets/reference/sunrise-lotus-optimized.jpg";
@@ -266,7 +274,7 @@ function formatHeroSessionTime(value?: string | null) {
   return `${date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })} IST`;
 }
 
-const AUDIO_LIBRARY_FILTERS = ["All", "Free", "Unlocked", "Online Shivir", "Offline Shivir"] as const;
+const AUDIO_LIBRARY_FILTERS = ["All", "Free", "Online Shivir", "Offline Shivir"] as const;
 
 function audioGroupLabel(resource: Resource) {
   if (resource.audio_group === "offline_shivir") return "Offline Shivir";
@@ -296,22 +304,40 @@ function thumbnailFor(video: SacredVideo, fallback: ImageSourcePropType = temple
   return fallback;
 }
 
+const VIDEO_LIBRARY_CATEGORIES = ["Normal Sessions", "Guided Meditation"] as const;
+
+function videoLibraryCategory(video: SacredVideo) {
+  if (video.category === "Normal Sessions" || video.category === "Guided Meditation") {
+    return video.category;
+  }
+  const searchable = `${video.category || ""} ${video.title || ""} ${video.description || ""}`.toLocaleLowerCase();
+  return searchable.includes("meditation") ? "Guided Meditation" : "Normal Sessions";
+}
+
 function PageShell({ children, compactTop = false }: { children: ReactNode; compactTop?: boolean }) {
   return (
     <SafeAreaView edges={["top"]} style={premium.safeArea}>
       <View pointerEvents="none" style={premium.pageMandala}>
         <Image source={omMandala} resizeMode="contain" style={premium.pageMandalaImage} />
       </View>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        style={premium.pageScroll}
-        contentContainerStyle={premium.pageScrollContent}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={0}
+        style={premium.keyboardAvoider}
       >
-        <View style={[premium.shell, compactTop && premium.shellCompact]}>
-          {children}
-        </View>
-      </ScrollView>
+        <ScrollView
+          automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          style={premium.pageScroll}
+          contentContainerStyle={premium.pageScrollContent}
+        >
+          <View style={[premium.shell, compactTop && premium.shellCompact]}>
+            {children}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -386,7 +412,7 @@ function DataStateCard({
 }
 
 export function HomeScreen({ navigation }: any) {
-  const { profile, userId, unlocks, completeSacredKey, refreshUnlocks, recordSessionJoin } = useAuth();
+  const { profile, userId, recordSessionJoin } = useAuth();
   const { sessions, resources, events, videos, announcements, settings, loading, error, reload } = usePremiumData();
   const { width } = useWindowDimensions();
   const compact = width < 370;
@@ -397,9 +423,7 @@ export function HomeScreen({ navigation }: any) {
   const nextEvent = events[0];
   const latestAnnouncement = announcements[0];
   const audioCount = audioResources.length;
-  const protectedCount = resources.filter((resource) => resource.type === "audio" && resource.access_type === "session_protected").length;
   const avatarInitial = (profile?.name || profile?.email || "S").trim().slice(0, 1).toUpperCase();
-  const lockedRecording = resources.find((resource) => resource.access_type === "session_protected" && resource.session_id && !canAccessResource(resource, { sessionUnlocks: unlocks }));
   const whatsappUrl = settings.whatsapp_group_url?.trim() || "";
 
   async function rememberSessionClick(session?: Session) {
@@ -416,15 +440,6 @@ export function HomeScreen({ navigation }: any) {
     openUrl(liveSession?.zoom_link || settingValue(settings, "default_zoom_link"), "Sacred Circle has not added the session link yet.");
   }
 
-  async function register(session?: Session) {
-    if (!userId || !session?.id) {
-      Alert.alert("Registration unavailable", "Sign in and choose an upcoming session to register.");
-      return;
-    }
-    await recordSessionJoin(session.id);
-    Alert.alert("Registered", "You are registered for this session.");
-  }
-
   return (
     <PageShell>
       <FadeUp delay={0}>
@@ -437,9 +452,14 @@ export function HomeScreen({ navigation }: any) {
           <View style={premium.homeHeroHeader}>
             <Image source={sacredFlameLogo} resizeMode="contain" style={premium.homeHeroLogo} />
             <View style={premium.headerActions}>
-              <View style={premium.heroNotificationButton}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Sunday reminder settings"
+                onPress={() => navigateApp(navigation, "Notifications")}
+                style={premium.heroNotificationButton}
+              >
                 <Bell color={colors.navy} size={19} strokeWidth={1.7} />
-              </View>
+              </Pressable>
               <Pressable onPress={() => navigateApp(navigation, "Profile")} style={premium.heroAvatarSmall}>
                 {profile?.avatar_url ? <Image source={{ uri: profile.avatar_url }} resizeMode="cover" style={premium.avatarImageSmall} /> : <Text style={premium.avatarInitial}>{avatarInitial}</Text>}
               </Pressable>
@@ -447,7 +467,7 @@ export function HomeScreen({ navigation }: any) {
           </View>
 
           <View style={premium.homeHeroGreeting}>
-            <Text style={premium.heroGreeting}>{name ? `Namaste, ${name}` : "Namaste"}</Text>
+            <Text style={premium.heroGreeting}>{name ? `Namaste, ${name} Ji` : "Namaste Ji"}</Text>
             <View style={premium.heroGoldRule} />
             <Text style={premium.heroGreetingText}>Welcome to your sacred space of healing, meditation and inner awakening.</Text>
           </View>
@@ -469,7 +489,6 @@ export function HomeScreen({ navigation }: any) {
               </View>
               <View style={premium.heroSessionActions}>
                 <PrimaryButton label="Join Session" icon={<ChevronRight color="#FFFFFF" size={17} />} onPress={joinSession} style={premium.heroPrimaryButton} textStyle={premium.heroButtonText} />
-                <SecondaryButton label="Register" onPress={() => register(liveSession)} style={premium.heroSecondaryButton} textStyle={premium.heroSecondaryText} />
               </View>
             </View>
           ) : null}
@@ -506,14 +525,7 @@ export function HomeScreen({ navigation }: any) {
 
           <FadeUp delay={270}>
             <HomeAccessKeyCard
-              recording={lockedRecording}
-              protectedCount={protectedCount}
-              onUnlock={async (sessionId, code) => {
-                const result = await completeSacredKey(sessionId, code);
-                if (result === "unlocked" || result === "already_unlocked") await refreshUnlocks();
-                return result;
-              }}
-              onOpenRecordings={() => navigateApp(navigation, "Audio")}
+              onAuthorized={(recording, accessCode) => navigateApp(navigation, "AudioPlayer", { resource: recording, accessCode })}
             />
           </FadeUp>
 
@@ -551,7 +563,7 @@ export function HomeScreen({ navigation }: any) {
 }
 
 export function SessionsScreen({ navigation }: any) {
-  const { userId, unlocks, recordSessionJoin } = useAuth();
+  const { userId, recordSessionJoin } = useAuth();
   const { sessions, resources, settings, loading, error, reload } = usePremiumData();
   const upcoming = sessions.filter((session) => session.status === "live" || (session.status === "upcoming" && Date.parse(session.session_date || "") >= Date.now()));
   const past = sessions.filter((session) => session.status === "completed");
@@ -609,7 +621,7 @@ export function SessionsScreen({ navigation }: any) {
           <Text style={premium.sectionTitle}>Past Sessions</Text>
           {past.length ? past.map((session, index) => {
             const resource = resources.find((item) => item.session_id === session.id);
-            const state = getRecordingState(resource, { sessionUnlocks: unlocks });
+            const state = getRecordingState(resource);
             return (
               <FadeUp key={session.id} delay={360 + index * 70}>
                 <Pressable onPress={() => navigateApp(navigation, "SessionDetail", { session })}>
@@ -618,7 +630,7 @@ export function SessionsScreen({ navigation }: any) {
                       <Text style={premium.rowTitle}>{session.title}</Text>
                       <Text style={premium.rowSub}>{formatShortDate(session.session_date)}</Text>
                     </View>
-                    <StatusBadge label={state === "unlocked" ? "Unlocked" : state === "locked" ? "Locked" : "Not uploaded"} tone={state === "unlocked" ? "success" : state === "locked" ? "warning" : "danger"} />
+                    <StatusBadge label={state === "not_uploaded" ? "Not uploaded" : "Key required"} tone={state === "not_uploaded" ? "danger" : "warning"} />
                   </PremiumCard>
                 </Pressable>
               </FadeUp>
@@ -631,7 +643,7 @@ export function SessionsScreen({ navigation }: any) {
 }
 
 export function MeditationsScreen({ navigation }: any) {
-  const { profile, unlocks } = useAuth();
+  const { profile } = useAuth();
   const { sessions, resources, loading, error, reload } = usePremiumData();
   const { width } = useWindowDimensions();
   const isNarrowPhone = width < 430;
@@ -655,9 +667,7 @@ export function MeditationsScreen({ navigation }: any) {
   const filteredAudio = useMemo(
     () => audioResources.filter((resource) => {
       const group = audioGroupLabel(resource);
-      const isUnlocked = resource.access_type === "session_protected" && canAccessResource(resource, { sessionUnlocks: unlocks });
-      const categoryMatches = selectedCategory === "All"
-        || (selectedCategory === "Unlocked" ? isUnlocked : group === selectedCategory);
+      const categoryMatches = selectedCategory === "All" || group === selectedCategory;
       const locationMatches = selectedCategory !== "Offline Shivir"
         || selectedLocation === "All Locations"
         || resource.shivir_location === selectedLocation;
@@ -665,7 +675,7 @@ export function MeditationsScreen({ navigation }: any) {
         && locationMatches
         && matchesSearch([resource.title, resource.description, resource.category, group, resource.shivir_location], query);
     }),
-    [audioResources, query, selectedCategory, selectedLocation, unlocks]
+    [audioResources, query, selectedCategory, selectedLocation]
   );
   const featuredAudio = filteredAudio.find((item) => item.is_featured) || null;
   const categories = [...AUDIO_LIBRARY_FILTERS];
@@ -687,8 +697,7 @@ export function MeditationsScreen({ navigation }: any) {
   }
 
   function openAudio(resource: Resource) {
-    const unlocked = canAccessResource(resource, { sessionUnlocks: unlocks });
-    if (resource.access_type === "session_protected" && !unlocked) {
+    if (resource.access_type === "session_protected") {
       openProtectedResource(resource);
       return;
     }
@@ -701,9 +710,6 @@ export function MeditationsScreen({ navigation }: any) {
   }
 
   function filterCount(category: string) {
-    if (category === "Unlocked") {
-      return audioResources.filter((resource) => resource.access_type === "session_protected" && canAccessResource(resource, { sessionUnlocks: unlocks })).length;
-    }
     return audioResources.filter((resource) => audioGroupLabel(resource) === category).length;
   }
 
@@ -717,10 +723,15 @@ export function MeditationsScreen({ navigation }: any) {
           </View>
         </View>
         <View style={premium.headerActions}>
-          <View style={premium.notificationButton}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Sunday reminder settings"
+            onPress={() => navigateApp(navigation, "Notifications")}
+            style={premium.notificationButton}
+          >
             <Bell color={colors.navy} size={18} strokeWidth={1.7} />
             <View style={premium.notificationDot} />
-          </View>
+          </Pressable>
           <Pressable onPress={() => navigateApp(navigation, "Profile")} style={premium.avatarSmall}>
             {profile?.avatar_url ? <Image source={{ uri: profile.avatar_url }} resizeMode="cover" style={premium.avatarImageSmall} /> : <Text style={premium.avatarInitial}>{avatarInitial}</Text>}
           </Pressable>
@@ -809,13 +820,12 @@ export function MeditationsScreen({ navigation }: any) {
 
           {filteredAudio.length ? <SectionHead title={selectedCategory === "All" ? "All Audios" : selectedLocation !== "All Locations" ? selectedLocation : selectedCategory} /> : null}
           {filteredAudio.map((resource, index) => {
-            const unlocked = canAccessResource(resource, { sessionUnlocks: unlocks });
             return (
               <AudioListRow
                 key={resource.id}
                 resource={resource}
                 image={index % 2 ? sunriseLotus : templeLake}
-                locked={resource.access_type === "session_protected" && !unlocked}
+                locked={resource.access_type === "session_protected"}
                 onPress={() => openAudio(resource)}
               />
             );
@@ -845,6 +855,7 @@ export function MoreScreen({ navigation }: any) {
 
   const primaryRows = [
     ["My Profile", <User color={colors.navy} size={18} />, () => navigateApp(navigation, "Profile")],
+    ["Sunday Reminders", <Bell color={colors.navy} size={18} />, () => navigateApp(navigation, "Notifications")],
     ["Sunday Sessions", <CalendarDays color={colors.navy} size={18} />, () => navigateApp(navigation, "Sessions")],
     ["Audio Library", <Headphones color={colors.navy} size={18} />, () => navigateApp(navigation, "Audio")],
     ["Video Library", <Video color={colors.navy} size={18} />, () => navigateApp(navigation, "Video")]
@@ -855,6 +866,7 @@ export function MoreScreen({ navigation }: any) {
     ["Resources", <BookOpen color={colors.navy} size={18} />, () => navigateApp(navigation, "Resources")],
     ["Shivir Information", <CalendarDays color={colors.navy} size={18} />, () => navigateApp(navigation, "Events")],
     ["About Sacred Circle", <Info color={colors.navy} size={18} />, () => navigateApp(navigation, "About")],
+    ["Legal, Privacy & Safety", <BookOpen color={colors.navy} size={18} />, () => navigateApp(navigation, "Legal")],
     ["Contact", <Mail color={colors.navy} size={18} />, () => navigateApp(navigation, "Contact")],
     ["Help & Support", <HelpCircle color={colors.navy} size={18} />, () => navigateApp(navigation, "Help")]
   ] as const;
@@ -884,13 +896,6 @@ export function MoreScreen({ navigation }: any) {
         {contentRows.map(([label, icon, action]) => <MoreRow key={label} label={label} icon={icon} onPress={action} />)}
         {!isPlaceholderUrl(whatsappUrl) ? <MoreRow label="WhatsApp Group" icon={<Grid2X2 color={colors.navy} size={18} />} onPress={() => openUrl(whatsappUrl)} /> : null}
       </PremiumCard>
-      <View style={premium.blessingCard}>
-        <Image source={omMandala} resizeMode="contain" style={premium.blessingOm} />
-        <View>
-          <Text style={premium.blessingTitle}>Jai Gurudev</Text>
-          <Text style={premium.blessingText}>Thank you for being a part of this sacred journey.</Text>
-        </View>
-      </View>
       <Pressable onPress={logout} style={premium.logoutButton}>
         <Text style={premium.logoutText}>Logout</Text>
       </Pressable>
@@ -898,9 +903,134 @@ export function MoreScreen({ navigation }: any) {
   );
 }
 
+export function NotificationSettingsScreen({ navigation }: any) {
+  const { userId } = useAuth();
+  const [enabled, setEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const nativePushAvailable = Platform.OS !== "web";
+
+  useEffect(() => {
+    let active = true;
+    async function loadPreference() {
+      if (!userId) {
+        if (active) setLoading(false);
+        return;
+      }
+      try {
+        const preference = await getNotificationPreference(userId);
+        if (active) setEnabled(Boolean(preference?.sunday_session_enabled));
+      } catch (error) {
+        console.warn("Unable to load Sunday reminder preference", error);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    void loadPreference();
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
+  async function updatePreference(nextEnabled: boolean) {
+    if (saving || !userId) return;
+    if (!nativePushAvailable) {
+      Alert.alert(
+        "Use the Sacred Circle app",
+        "Sunday push reminders are available in the installed iOS and Android app. Your web account remains unchanged."
+      );
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (nextEnabled) {
+        const token = await getExpoPushToken();
+        if (!token) {
+          Alert.alert(
+            "Notifications not enabled",
+            "Allow notifications in your phone settings, then try again from the Sacred Circle app."
+          );
+          return;
+        }
+        await registerPushToken({
+          user_id: userId,
+          expo_push_token: token,
+          platform: Platform.OS
+        });
+      }
+      await setSundaySessionNotifications(userId, nextEnabled);
+      setEnabled(nextEnabled);
+      Alert.alert(
+        nextEnabled ? "Sunday reminders enabled" : "Sunday reminders turned off",
+        nextEnabled
+          ? "You can now receive Sunday session reminders and important session updates."
+          : "You will no longer receive Sunday session push reminders."
+      );
+    } catch (error) {
+      console.warn("Unable to update Sunday reminder preference", error);
+      Alert.alert("Could not update reminders", "Please check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <PageShell compactTop>
+      <CenterTitle
+        title="Notifications"
+        left={<CircleIconButton onPress={() => navigation.goBack()}><ArrowLeft color={colors.navy} size={20} /></CircleIconButton>}
+      />
+      <PremiumCard style={premium.notificationSettingsCard}>
+        <View style={premium.notificationSettingsIcon}>
+          <Bell color={colors.gold} size={30} strokeWidth={1.8} />
+        </View>
+        <Text style={premium.notificationSettingsTitle}>Sunday Session Reminders</Text>
+        <Text style={premium.notificationSettingsBody}>
+          Receive a reminder and important updates for Sacred Circle&apos;s Sunday meditation session.
+        </Text>
+        <View style={premium.notificationToggleRow}>
+          <View style={premium.notificationToggleCopy}>
+            <Text style={premium.notificationToggleTitle}>Allow Sunday reminders</Text>
+            <Text style={premium.notificationToggleStatus}>
+              {loading
+                ? "Loading your preference..."
+                : nativePushAvailable
+                  ? enabled ? "On for this account" : "Off"
+                  : "Available in the installed mobile app"}
+            </Text>
+          </View>
+          {loading || saving ? (
+            <ActivityIndicator color={colors.gold} />
+          ) : (
+            <Switch
+              accessibilityLabel="Allow Sunday session reminders"
+              accessibilityState={{ checked: enabled, disabled: !nativePushAvailable }}
+              disabled={!nativePushAvailable}
+              value={enabled}
+              onValueChange={(value) => { void updatePreference(value); }}
+              trackColor={{ false: "#D8D5CE", true: colors.goldSoft }}
+              thumbColor={enabled ? colors.gold : "#FFFFFF"}
+              ios_backgroundColor="#D8D5CE"
+            />
+          )}
+        </View>
+      </PremiumCard>
+      <PremiumCard style={premium.notificationPrivacyCard}>
+        <ShieldCheck color={colors.gold} size={21} />
+        <View style={premium.notificationPrivacyCopy}>
+          <Text style={premium.notificationPrivacyTitle}>You are in control</Text>
+          <Text style={premium.notificationPrivacyBody}>
+            Notifications are optional. You can turn them off here or in your phone settings at any time.
+          </Text>
+        </View>
+      </PremiumCard>
+    </PageShell>
+  );
+}
+
 export function ProfileScreen({ navigation }: any) {
-  const { profile, unlocks, updateProfile, deleteMyAccount, signOut } = useAuth();
-  const { settings } = usePremiumData();
+  const { profile, updateProfile, deleteMyAccount, signOut } = useAuth();
   const { width, fontScale } = useWindowDimensions();
   const compactLayout = width < 380 || fontScale > 1.15;
   const [editing, setEditing] = useState(false);
@@ -1034,11 +1164,13 @@ export function ProfileScreen({ navigation }: any) {
         {profile ? <MoreRow label="Personal Details" icon={<User color={colors.navy} size={19} />} onPress={() => setEditing(true)} /> : null}
         {profile?.phone ? <MoreRow label="Mobile Number" icon={<User color={colors.navy} size={19} />} trailing={profile.phone} /> : null}
         {profile?.city ? <MoreRow label="City" icon={<MapPin color={colors.navy} size={19} />} trailing={profile.city} /> : null}
-        <MoreRow label="My Recordings" icon={<Headphones color={colors.navy} size={19} />} trailing={`${unlocks.length}`} onPress={() => navigateApp(navigation, "Audio")} />
+        <MoreRow label="Sunday Reminders" icon={<Bell color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "Notifications")} />
+        <MoreRow label="Audio Library" icon={<Headphones color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "Audio")} />
         <MoreRow label="Sacred Access Key" icon={<LockKeyhole color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "Sessions")} />
         <MoreRow label="Contact and Help" icon={<HelpCircle color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "Help")} />
-        {settings.privacy_policy ? <MoreRow label="Privacy Policy" icon={<Info color={colors.navy} size={19} />} onPress={() => Alert.alert("Privacy Policy", settings.privacy_policy)} /> : null}
-        {settings.terms_text ? <MoreRow label="Terms" icon={<BookOpen color={colors.navy} size={19} />} onPress={() => Alert.alert("Terms", settings.terms_text)} /> : null}
+        <MoreRow label="Privacy Policy" icon={<Info color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "PrivacyPolicy")} />
+        <MoreRow label="Terms of Use" icon={<BookOpen color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "TermsOfUse")} />
+        <MoreRow label="Account & Data Deletion" icon={<LockKeyhole color={colors.navy} size={19} />} onPress={() => navigateApp(navigation, "AccountDeletion")} />
       </PremiumCard>
 
       {profile ? (
@@ -1063,17 +1195,12 @@ export function VideosListScreen({ navigation }: any) {
   const compactLayout = width < 380 || fontScale > 1.15;
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState("All Videos");
+  const [selectedCategory, setSelectedCategory] = useState<(typeof VIDEO_LIBRARY_CATEGORIES)[number]>("Normal Sessions");
   const [sortMode, setSortMode] = useState<"latest" | "library">("latest");
-  const categories = useMemo(() => [
-    "All Videos",
-    ...["Meditation", "Healing", "Manifestation", "Relationships", "Spiritual Wisdom", "Cosmic Teachings"]
-      .filter((category) => videos.some((video) => video.category === category))
-  ], [videos]);
   const filteredVideos = useMemo(
     () => videos.filter((video) => {
-      const categoryMatches = selectedCategory === "All Videos" || video.category === selectedCategory;
-      return categoryMatches && matchesSearch([video.title, video.description, video.category], query);
+      const categoryMatches = videoLibraryCategory(video) === selectedCategory;
+      return categoryMatches && matchesSearch([video.title, video.description], query);
     }).sort((left, right) => {
       if (sortMode === "library") return left.display_order - right.display_order;
       const leftTime = left.created_at ? Date.parse(left.created_at) : 0;
@@ -1084,10 +1211,6 @@ export function VideosListScreen({ navigation }: any) {
   );
   const featured = filteredVideos[0];
   const remainingVideos = filteredVideos.slice(1);
-
-  useEffect(() => {
-    if (!categories.includes(selectedCategory)) setSelectedCategory("All Videos");
-  }, [categories, selectedCategory]);
 
   return (
     <PageShell compactTop>
@@ -1144,7 +1267,7 @@ export function VideosListScreen({ navigation }: any) {
 
       {videos.length ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={premium.chipRow}>
-          {categories.map((chip) => (
+          {VIDEO_LIBRARY_CATEGORIES.map((chip) => (
             <Pressable key={chip} accessibilityRole="button" accessibilityState={{ selected: selectedCategory === chip }} onPress={() => setSelectedCategory(chip)}>
               <Text numberOfLines={1} maxFontSizeMultiplier={1.12} style={[premium.chip, selectedCategory === chip && premium.chipActive]}>{chip}</Text>
             </Pressable>
@@ -1158,17 +1281,12 @@ export function VideosListScreen({ navigation }: any) {
       {!loading && !error ? (
         <>
           {!videos.length ? <DataStateCard title="No videos yet" body="Published videos will appear here." /> : null}
-          {videos.length && !filteredVideos.length ? <DataStateCard title="No matching videos" body="Try a different search or category." /> : null}
+          {videos.length && !filteredVideos.length ? <DataStateCard title={`No ${selectedCategory.toLocaleLowerCase()} found`} body="Try a different search or select the other video type." /> : null}
 
           {featured ? (
             <>
               <SectionHead
-                title="Featured Videos"
-                action="View All"
-                onAction={() => {
-                  setSelectedCategory("All Videos");
-                  setQuery("");
-                }}
+                title={`Featured ${selectedCategory}`}
               />
               <Pressable onPress={() => openUrl(featured.youtube_url)}>
                 <PremiumCard style={[premium.videoFeaturedCard, compactLayout && premium.videoFeaturedCardCompact]}>
@@ -1180,7 +1298,7 @@ export function VideosListScreen({ navigation }: any) {
                     {featured.description ? <Text numberOfLines={3} maxFontSizeMultiplier={1.1} style={premium.videoFeaturedDesc}>{featured.description}</Text> : null}
                     <View style={premium.videoMetaLine}>
                       <Text style={premium.videoMetaText}>YouTube video</Text>
-                      <Text style={premium.videoCategory}>{featured.category || "Uncategorized"}</Text>
+                      <Text style={premium.videoCategory}>{videoLibraryCategory(featured)}</Text>
                     </View>
                   </View>
                 </PremiumCard>
@@ -1191,7 +1309,7 @@ export function VideosListScreen({ navigation }: any) {
           {remainingVideos.length ? (
             <>
               <View style={premium.videoListHeader}>
-                <Text style={premium.sectionTitle}>All Videos</Text>
+                <Text style={premium.sectionTitle}>{selectedCategory}</Text>
                 <View style={premium.videoListActions}>
                   <Pressable
                     accessibilityLabel={`Sort videos by ${sortMode === "latest" ? "library order" : "latest first"}`}
@@ -1204,7 +1322,7 @@ export function VideosListScreen({ navigation }: any) {
                   <Pressable
                     accessibilityLabel="Clear video filters"
                     onPress={() => {
-                      setSelectedCategory("All Videos");
+                      setSelectedCategory("Normal Sessions");
                       setQuery("");
                     }}
                     style={premium.videoFilterButton}
@@ -1221,7 +1339,7 @@ export function VideosListScreen({ navigation }: any) {
                   </View>
                   <View style={premium.videoRowCopy}>
                     <Text numberOfLines={2} maxFontSizeMultiplier={1.1} style={premium.videoRowTitle}>{video.title}</Text>
-                    <View style={premium.videoRowMeta}><Text style={premium.videoRowMetaText}>YouTube</Text><Text style={premium.videoPill}>{video.category || "Uncategorized"}</Text></View>
+                    <View style={premium.videoRowMeta}><Text style={premium.videoRowMetaText}>YouTube</Text><Text style={premium.videoPill}>{videoLibraryCategory(video)}</Text></View>
                   </View>
                   <ChevronRight color={colors.gold} size={18} />
                 </Pressable>
@@ -1346,39 +1464,47 @@ function ProfileField({
 }
 
 function HomeAccessKeyCard({
-  recording,
-  protectedCount,
-  onUnlock,
-  onOpenRecordings
+  onAuthorized
 }: {
-  recording?: Resource;
-  protectedCount: number;
-  onUnlock: (sessionId: string, code: string) => Promise<string>;
-  onOpenRecordings: () => void;
+  onAuthorized: (recording: Resource, accessCode: string) => void;
 }) {
   const [code, setCode] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [matchedCode, setMatchedCode] = useState("");
+  const [recordings, setRecordings] = useState<Resource[]>([]);
 
   async function submit() {
-    if (!recording?.session_id) {
-      setMessage(protectedCount ? "Your available session recordings are already unlocked." : "No protected recording is available yet.");
-      return;
-    }
-    if (code.length !== 4) {
-      setMessage("Enter the 4-character key shared during the live session.");
+    if (code.length !== SACRED_KEY_LENGTH) {
+      setMessage(`Enter the complete ${SACRED_KEY_LENGTH}-digit key shared during the live session.`);
       return;
     }
     setBusy(true);
-    const result = await onUnlock(recording.session_id, code);
+    const result = await findRecordingsBySacredKey(code);
     setBusy(false);
-    if (result === "unlocked" || result === "already_unlocked") {
-      setCode("");
-      setMessage("Recording unlocked. You can now open My Recordings.");
-    } else if (result === "expired_code") setMessage("This Sacred Access Key has expired.");
-    else if (result === "rate_limited") setMessage("Too many attempts. Please wait and try again.");
-    else if (result === "auth_required" || result === "service_unavailable") setMessage("Please sign in and try again.");
-    else setMessage("This key does not match the selected session recording.");
+    setRecordings(result.recordings);
+    if (result.status === "matched" && result.recordings.length) {
+      setMatchedCode(code);
+      setMessage(result.recordings.length === 1 ? "Your session recording is ready." : `${result.recordings.length} session recordings are ready.`);
+    } else {
+      setMatchedCode("");
+      if (result.status === "expired_code") setMessage("This Sacred Access Key has expired.");
+      else if (result.status === "rate_limited") setMessage("Too many attempts. Please wait 15 minutes and try again.");
+      else if (result.status === "auth_required") setMessage("Please sign in before using a Sacred Access Key.");
+      else if (result.status === "recording_unavailable") setMessage("The key is valid, but its recording has not been published yet.");
+      else if (result.status === "service_unavailable") setMessage("The recording service is temporarily unavailable. Please try again.");
+      else setMessage("This Sacred Access Key is incorrect.");
+    }
+  }
+
+  function playRecording(recording: Resource) {
+    if (!matchedCode) return;
+    const accessCode = matchedCode;
+    setCode("");
+    setMatchedCode("");
+    setRecordings([]);
+    setMessage("");
+    onAuthorized(recording, accessCode);
   }
 
   return (
@@ -1387,31 +1513,51 @@ function HomeAccessKeyCard({
         <View style={premium.compactCardIcon}><LockKeyhole color={colors.gold} size={22} /></View>
         <View style={premium.compactCardCopy}>
           <Text style={premium.compactCardTitle}>Sacred Access Key</Text>
-          <Text style={premium.compactCardText}>Enter the key shared during a Sunday session to unlock its protected recording.</Text>
+          <Text style={premium.compactCardText}>Enter your session's six-digit key and its protected recording will appear here. The key is required again next time.</Text>
         </View>
       </View>
-      {recording?.session_id ? (
-        <View style={premium.accessKeyControls}>
-          <TextInput
-            accessibilityLabel="Sacred Access Key"
-            autoCapitalize="characters"
-            autoCorrect={false}
-            maxLength={4}
-            value={code}
-            onChangeText={(value) => {
-              setCode(value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase());
-              setMessage("");
-            }}
-            placeholder="Enter key"
-            placeholderTextColor={colors.body}
-            style={premium.accessKeyInput}
-          />
-          <PrimaryButton label={busy ? "Unlocking..." : "Unlock Recording"} onPress={submit} disabled={busy} style={premium.accessKeyButton} />
+      <View style={premium.accessKeyControls}>
+        <TextInput
+          accessibilityLabel="Sacred Access Key"
+          autoCorrect={false}
+          keyboardType="number-pad"
+          textContentType="oneTimeCode"
+          maxLength={SACRED_KEY_LENGTH}
+          value={code}
+          onChangeText={(value) => {
+            setCode(value.replace(/\D/g, "").slice(0, SACRED_KEY_LENGTH));
+            setMatchedCode("");
+            setRecordings([]);
+            setMessage("");
+          }}
+          onSubmitEditing={() => {
+            if (!busy && code.length === SACRED_KEY_LENGTH) void submit();
+          }}
+          placeholder="6 digits"
+          placeholderTextColor={colors.body}
+          style={premium.accessKeyInput}
+        />
+        <PrimaryButton label={busy ? "Checking..." : "Find Recording"} onPress={submit} disabled={busy} style={premium.accessKeyButton} />
+      </View>
+      {message ? <Text style={[premium.accessKeyMessage, recordings.length > 0 && premium.accessKeyMessageSuccess]}>{message}</Text> : null}
+      {recordings.length ? (
+        <View style={premium.accessKeyResults}>
+          {recordings.map((recording) => (
+            <View key={recording.id} style={premium.accessKeyResultRow}>
+              <View style={premium.accessKeyResultIcon}><Headphones color={colors.gold} size={20} /></View>
+              <View style={premium.accessKeyResultCopy}>
+                <Text numberOfLines={2} style={premium.accessKeyResultTitle}>{recording.title}</Text>
+                <Text numberOfLines={1} style={premium.accessKeyResultMeta}>
+                  {[recording.recorded_at ? formatShortDate(recording.recorded_at) : "Session recording", recording.duration_seconds ? formatDuration(recording.duration_seconds) : ""].filter(Boolean).join(" · ")}
+                </Text>
+              </View>
+              <Pressable accessibilityRole="button" accessibilityLabel={`Play ${recording.title}`} onPress={() => playRecording(recording)} style={premium.accessKeyResultPlay}>
+                <Play color="#FFFFFF" fill="#FFFFFF" size={17} />
+              </Pressable>
+            </View>
+          ))}
         </View>
-      ) : (
-        <SecondaryButton label="My Recordings" onPress={onOpenRecordings} style={premium.accessKeyOpenButton} textStyle={premium.listenText} />
-      )}
-      {message ? <Text style={premium.accessKeyMessage}>{message}</Text> : null}
+      ) : null}
     </PremiumCard>
   );
 }
@@ -1487,7 +1633,7 @@ function WhatsAppCommunityCard({ onJoin }: { onJoin: () => void }) {
         <View style={premium.whatsappIcon}><MessageCircle color="#FFFFFF" size={24} /></View>
         <View style={premium.whatsappCopy}>
           <Text style={premium.whatsappTitle}>WhatsApp Community</Text>
-          <Text style={premium.whatsappText}>Join updates for Sunday sessions and Sacred Circle announcements.</Text>
+          <Text style={premium.whatsappText}>Join us to receive the session link and stay updated with upcoming events.</Text>
         </View>
         <ChevronRight color={colors.goldSoft} size={20} />
       </LinearGradient>
@@ -1497,6 +1643,7 @@ function WhatsAppCommunityCard({ onJoin }: { onJoin: () => void }) {
 
 const premium = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#FFF9F0" },
+  keyboardAvoider: { flex: 1 },
   pageScroll: { flex: 1, backgroundColor: "#FFF9F0" },
   pageMandala: { position: "absolute", width: 320, height: 320, top: 38, right: -124, opacity: 0.075 },
   pageMandalaImage: { width: "100%", height: "100%" },
@@ -1564,9 +1711,7 @@ const premium = StyleSheet.create({
   metaLineText: { color: colors.bodyDark, fontSize: 12.5, lineHeight: 17, flexShrink: 1 },
   sessionActionRow: { position: "absolute", left: 18, right: 18, bottom: 16, zIndex: 4, flexDirection: "row", gap: 10, alignItems: "center" },
   heroPrimaryButton: { flex: 1, minHeight: 48, borderRadius: 13, paddingHorizontal: 10 },
-  heroSecondaryButton: { flex: 0.82, minHeight: 48, borderRadius: 13, paddingHorizontal: 10, backgroundColor: "rgba(255,253,248,0.90)" },
   heroButtonText: { fontSize: 13 },
-  heroSecondaryText: { fontSize: 13, color: colors.gold },
   homeSessionArt: { position: "absolute", right: 0, top: 0, bottom: 0, width: "51%", height: "100%", opacity: 0.94, borderTopLeftRadius: 164, borderBottomLeftRadius: 164, borderTopRightRadius: 28, borderBottomRightRadius: 28 },
   homeSessionArtCompact: { width: "46%", opacity: 0.86 },
   freeAudioCard: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16, padding: 12, minHeight: 128 },
@@ -1587,6 +1732,14 @@ const premium = StyleSheet.create({
   accessKeyButton: { flex: 1.28, minHeight: 50, borderRadius: 13, paddingHorizontal: 10 },
   accessKeyOpenButton: { alignSelf: "flex-start", minHeight: 44, marginTop: 14, paddingHorizontal: 18 },
   accessKeyMessage: { color: colors.bodyDark, fontSize: 12, lineHeight: 18, marginTop: 10 },
+  accessKeyMessageSuccess: { color: "#527A4A", fontWeight: "800" },
+  accessKeyResults: { gap: 9, marginTop: 12 },
+  accessKeyResultRow: { minHeight: 68, borderRadius: 15, borderWidth: 1, borderColor: "rgba(201,147,50,0.22)", backgroundColor: "rgba(255,249,237,0.88)", flexDirection: "row", alignItems: "center", gap: 10, padding: 10 },
+  accessKeyResultIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: "rgba(246,231,198,0.72)", alignItems: "center", justifyContent: "center" },
+  accessKeyResultCopy: { flex: 1, minWidth: 0 },
+  accessKeyResultTitle: { color: colors.navy, fontFamily: "Georgia", fontSize: 14, lineHeight: 18, fontWeight: "700" },
+  accessKeyResultMeta: { color: colors.bodyDark, fontSize: 11.5, lineHeight: 16, marginTop: 3 },
+  accessKeyResultPlay: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.navy, alignItems: "center", justifyContent: "center" },
   announcementCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 16, marginBottom: 16 },
   libraryCard: { padding: 18, marginBottom: 18 },
   libraryGrid: { flexDirection: "row", gap: 8, marginTop: 12, marginBottom: 12 },
@@ -1722,16 +1875,24 @@ const premium = StyleSheet.create({
   moreRowIcon: { width: 24, alignItems: "center" },
   moreRowLabel: { flex: 1, color: colors.navy, fontSize: 14, fontWeight: "800" },
   moreTrailing: { maxWidth: "42%", flexShrink: 1, color: colors.gold, fontWeight: "900" },
+  notificationSettingsCard: { alignItems: "center", paddingVertical: 26, marginBottom: 14 },
+  notificationSettingsIcon: { width: 68, height: 68, borderRadius: 34, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(246,231,198,0.58)", marginBottom: 14 },
+  notificationSettingsTitle: { color: colors.navy, fontFamily: "Georgia", fontSize: 23, lineHeight: 29, textAlign: "center" },
+  notificationSettingsBody: { color: colors.bodyDark, fontSize: 13, lineHeight: 20, textAlign: "center", marginTop: 8, maxWidth: 340 },
+  notificationToggleRow: { width: "100%", minHeight: 76, marginTop: 22, paddingHorizontal: 15, paddingVertical: 13, borderRadius: 18, borderWidth: 1, borderColor: colors.goldBorder, backgroundColor: colors.goldWash, flexDirection: "row", alignItems: "center", gap: 14 },
+  notificationToggleCopy: { flex: 1, minWidth: 0 },
+  notificationToggleTitle: { color: colors.navy, fontSize: 14, fontWeight: "900" },
+  notificationToggleStatus: { color: colors.bodyDark, fontSize: 11.5, lineHeight: 17, marginTop: 4 },
+  notificationPrivacyCard: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 14 },
+  notificationPrivacyCopy: { flex: 1, minWidth: 0 },
+  notificationPrivacyTitle: { color: colors.navy, fontFamily: "Georgia", fontSize: 17, lineHeight: 22 },
+  notificationPrivacyBody: { color: colors.bodyDark, fontSize: 12, lineHeight: 18, marginTop: 4 },
   dangerZoneCard: { marginTop: 2, borderColor: "rgba(185, 28, 28, 0.28)", gap: 8 },
   dangerZoneTitle: { color: colors.danger, fontFamily: "Georgia", fontSize: 18, lineHeight: 24 },
   dangerZoneBody: { color: colors.bodyDark, fontSize: 12, lineHeight: 18 },
   deleteAccountButton: { minHeight: 48, marginTop: 4, borderRadius: 12, borderWidth: 1, borderColor: colors.danger, alignItems: "center", justifyContent: "center" },
   deleteAccountButtonDisabled: { opacity: 0.55 },
   deleteAccountText: { color: colors.danger, fontSize: 13, fontWeight: "900" },
-  blessingCard: { minHeight: 116, borderRadius: 18, backgroundColor: colors.navy, overflow: "hidden", padding: 18, flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 14 },
-  blessingOm: { width: 82, height: 82, opacity: 0.92 },
-  blessingTitle: { color: colors.goldSoft, fontFamily: "Georgia", fontSize: 20, lineHeight: 25 },
-  blessingText: { color: "#FFFFFF", fontSize: 13, lineHeight: 19, marginTop: 5, maxWidth: 210 },
   logoutButton: { minHeight: 52, alignItems: "center", justifyContent: "center" },
   logoutText: { color: colors.danger, fontWeight: "900" },
   profileHero: { height: 264, marginHorizontal: 0, justifyContent: "flex-end", paddingHorizontal: 22, paddingBottom: 22, marginBottom: 16, borderRadius: 30, overflow: "hidden", borderWidth: 1, borderColor: colors.goldBorder, backgroundColor: colors.navy, ...shadows.soft },

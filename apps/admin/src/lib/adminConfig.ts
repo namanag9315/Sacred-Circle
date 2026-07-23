@@ -45,12 +45,12 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
   sessionAccessCodes: {
     title: "Sacred Access Keys",
     eyebrow: "Session unlock",
-    description: "Create session-specific Sacred Access Keys. Use the database function in production so the plain code is hashed before storage.",
+    description: "Create six-digit, session-specific Sacred Access Keys. The plain code is hashed before storage and members enter it for each new protected playback.",
     table: "session_access_codes",
     columns: ["session_id", "code_label", "starts_at", "expires_at", "is_active"],
     fields: [
       { key: "session_id", label: "Session", type: "relation", relation: { table: "sessions", valueKey: "id", labelKeys: ["title", "session_date"], orderKey: "session_date" } },
-      { key: "__plain_code", label: "Sacred Access Key", type: "text", helper: "This is hashed through the database function. It is not saved as plain text." },
+      { key: "__plain_code", label: "6-digit Sacred Access Key", type: "text", helper: "Use exactly six numbers. This is hashed through the database function and is not saved as plain text." },
       { key: "code_label", label: "Key label", type: "text" },
       { key: "starts_at", label: "Starts at", type: "datetime" },
       { key: "expires_at", label: "Expires at", type: "datetime" },
@@ -61,14 +61,14 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
   meditations: {
     title: "Audio & Resources",
     eyebrow: "Media library",
-    description: "Add Free, Online Shivir and Offline Shivir audios. Unlocked is calculated automatically for each member.",
+    description: "Add Free, Online Shivir and Offline Shivir audios. Protected playback requires the Sacred Access Key each time.",
     table: "resources",
     columns: ["title", "type", "audio_group", "recorded_at", "shivir_location", "access_type", "status"],
     fields: [
       { key: "title", label: "Title", type: "text" },
       { key: "description", label: "Description", type: "textarea" },
       { key: "type", label: "Type", type: "select", options: ["audio", "pdf", "article", "video"] },
-      { key: "audio_group", label: "Audio group", type: "select", options: ["free", "online_shivir", "offline_shivir"], helper: "Unlocked is user-specific and does not need to be selected here." },
+      { key: "audio_group", label: "Audio group", type: "select", options: ["free", "online_shivir", "offline_shivir"], helper: "Free audio is open; protected audio requests the Sacred Access Key for each playback." },
       { key: "recorded_at", label: "Recording date", type: "date", helper: "The library is sorted newest to oldest by this date." },
       { key: "shivir_location", label: "Offline Shivir location", type: "text", helper: "Required only for Offline Shivir audio." },
       { key: "category", label: "Internal label", type: "text", helper: "Use Free, Online Shivir or Offline Shivir." },
@@ -154,7 +154,7 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
       { key: "description", label: "Description", type: "textarea" },
       { key: "youtube_url", label: "YouTube video link", type: "text", helper: "Paste the original YouTube URL. The thumbnail is filled automatically from YouTube." },
       { key: "thumbnail_url", label: "Original thumbnail URL", type: "text", helper: "Usually auto-filled. Keep this as an i.ytimg.com URL unless there is a special reason." },
-      { key: "category", label: "Category", type: "text" },
+      { key: "category", label: "Category", type: "select", options: ["Normal Sessions", "Guided Meditation"] },
       { key: "display_order", label: "Display order", type: "number" },
       { key: "source_url", label: "Original website/source URL", type: "text" },
       { key: "migration_status", label: "Migration status", type: "select", options: ["manual_review", "ready", "imported", "needs_update", "archived"] },
@@ -165,29 +165,15 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
   users: {
     title: "Users",
     eyebrow: "Access",
-    description: "Search users, update minimal profile details, and change role only when needed.",
+    description: "Search members and update basic profile details. Administrator access is fixed to the official Sacred Circle account.",
     table: "profiles",
     columns: ["name", "email", "phone", "city", "state", "date_of_birth", "role"],
     fields: [
       { key: "name", label: "Name", type: "text" },
-      { key: "email", label: "Email", type: "text" },
       { key: "phone", label: "Phone", type: "text" },
       { key: "city", label: "City", type: "text" },
       { key: "state", label: "State", type: "text" },
-      { key: "date_of_birth", label: "Date of Birth", type: "text", helper: "Use YYYY-MM-DD." },
-      { key: "role", label: "Role", type: "select", options: ["user", "admin"] }
-    ],
-    demoRows: []
-  },
-  userUnlocks: {
-    title: "Manual Unlocks",
-    eyebrow: "User access",
-    description: "Grant or revoke access to a specific session recording for one user. Each unlock is session-specific.",
-    table: "user_session_unlocks",
-    columns: ["user_id", "session_id", "unlocked_at"],
-    fields: [
-      { key: "user_id", label: "User", type: "relation", relation: { table: "profiles", valueKey: "id", labelKeys: ["name", "email", "phone"], orderKey: "name" } },
-      { key: "session_id", label: "Session", type: "relation", relation: { table: "sessions", valueKey: "id", labelKeys: ["title", "session_date"], orderKey: "session_date" } }
+      { key: "date_of_birth", label: "Date of Birth", type: "text", helper: "Use YYYY-MM-DD." }
     ],
     demoRows: []
   },
@@ -207,9 +193,9 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
     demoRows: []
   },
   announcements: {
-    title: "Announcements",
-    eyebrow: "Home card",
-    description: "Create one clear announcement for Home. Push notifications can be wired later.",
+    title: "Notifications",
+    eyebrow: "Sunday reminders",
+    description: "Send a push reminder to members who opted in, and manage announcement cards shown on Home.",
     table: "announcements",
     columns: ["title", "message", "target_type", "is_active", "created_at"],
     fields: [
@@ -238,6 +224,7 @@ export const navItems = [
   ["Home", "/dashboard"],
   ["Upload Recording", "/meditations"],
   ["Video Library", "/videos"],
+  ["Notifications", "/announcements"],
   ["Members", "/users"],
   ["App Details", "/settings"]
 ] as const;
@@ -260,6 +247,5 @@ export const sessionConfigs = [
 ];
 
 export const userConfigs = [
-  moduleConfigs.users,
-  moduleConfigs.userUnlocks
+  moduleConfigs.users
 ];

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
-import { ExternalLink, Headphones, House, LogOut, Settings2, UsersRound, Video } from "lucide-react";
+import { Bell, ExternalLink, Headphones, House, LogOut, Settings2, UsersRound, Video } from "lucide-react";
 import { navItems } from "@/lib/adminConfig";
 import { AdminAuthProvider, useAdminAuth } from "./AdminAuth";
 
@@ -32,6 +32,7 @@ function ShellInner({ children }: { children: ReactNode }) {
     "/dashboard": House,
     "/meditations": Headphones,
     "/videos": Video,
+    "/announcements": Bell,
     "/users": UsersRound,
     "/settings": Settings2
   } as const;
