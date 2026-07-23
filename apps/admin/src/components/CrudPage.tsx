@@ -60,7 +60,7 @@ function newRow(config: ModuleConfig, preset?: "next-sunday" | "public-audio" | 
   if (config.table === "videos") {
     return {
       ...row,
-      category: "Spirituality",
+      category: "Normal Sessions",
       display_order: 0,
       migration_status: "ready",
       status: "published"

@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@expo/metro-runtime": "~56.0.17",
+    "@expo/metro-runtime": "~56.0.18",
     "@lottiefiles/dotlottie-react": "^0.13.5",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "9.1.0",
@@ -25,17 +25,17 @@
     "@sacred-circle/lib": "*",
     "@sacred-circle/ui": "*",
     "@supabase/supabase-js": "2.109.0",
-    "expo": "~56.0.16",
-    "expo-audio": "~56.0.12",
-    "expo-constants": "~56.0.21",
+    "expo": "~56.0.17",
+    "expo-audio": "~56.0.13",
+    "expo-constants": "~56.0.22",
     "expo-font": "~56.0.7",
     "expo-linear-gradient": "~56.0.4",
-    "expo-linking": "~56.0.15",
-    "expo-notifications": "~56.0.21",
+    "expo-linking": "~56.0.16",
+    "expo-notifications": "~56.0.22",
     "expo-secure-store": "~56.0.4",
-    "expo-splash-screen": "~56.0.13",
+    "expo-splash-screen": "~56.0.14",
     "expo-status-bar": "~56.0.4",
-    "expo-web-browser": "~56.0.5",
+    "expo-web-browser": "~56.0.6",
     "lottie-react-native": "^7.3.8",
     "lucide-react-native": "1.22.0",
     "moti": "^0.30.0",
@@ -45,7 +45,7 @@
     "react-native-gesture-handler": "~2.31.1",
     "react-native-reanimated": "4.3.1",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "4.25.2",
+    "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
     "react-native-url-polyfill": "3.0.0",
     "react-native-web": "^0.21.2",
@@ -54,7 +54,7 @@
   "devDependencies": {
     "@types/react": "19.2.17",
     "expo-doctor": "^1.20.0",
-    "sharp": "0.34.5",
+    "sharp": "^0.35.3",
     "typescript": "~6.0.3"
   }
 }

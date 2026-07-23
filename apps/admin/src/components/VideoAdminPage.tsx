@@ -29,13 +29,21 @@ type VideoForm = {
   displayOrder: number;
 };
 
-const categories = ["Spirituality", "Healing", "Meditation", "Relationships", "Manifestation"];
+const categories = ["Normal Sessions", "Guided Meditation"] as const;
+
+function videoCategory(row: Pick<VideoRow, "category" | "title" | "description">) {
+  if (row.category === "Normal Sessions" || row.category === "Guided Meditation") {
+    return row.category;
+  }
+  const searchable = `${row.category || ""} ${row.title || ""} ${row.description || ""}`.toLowerCase();
+  return searchable.includes("meditation") ? "Guided Meditation" : "Normal Sessions";
+}
 
 const emptyForm: VideoForm = {
   title: "",
   description: "",
   youtubeUrl: "",
-  category: "Spirituality",
+  category: "Normal Sessions",
   published: true,
   displayOrder: 0
 };
@@ -87,7 +95,7 @@ export function VideoAdminPage() {
       title: row.title,
       description: row.description || "",
       youtubeUrl: row.youtube_url,
-      category: row.category || "Spirituality",
+      category: videoCategory(row),
       published: row.status === "published",
       displayOrder: Number(row.display_order) || 0
     });
@@ -163,7 +171,7 @@ export function VideoAdminPage() {
         <div>
           <p className="eyebrow">Video library</p>
           <h2>Manage YouTube videos</h2>
-          <p>Paste a YouTube link, add a title and choose a category. The thumbnail is added automatically.</p>
+          <p>Paste a YouTube link, add a title and choose Normal Sessions or Guided Meditation. The thumbnail is added automatically.</p>
         </div>
         <button className="button gold" onClick={startNew}><Plus size={17} /> Add video</button>
       </div>
@@ -192,7 +200,7 @@ export function VideoAdminPage() {
               {row.thumbnail_url ? <img src={row.thumbnail_url} alt="" /> : <Video size={28} />}
             </div>
             <div className="content-row-copy">
-              <div><span className={row.status === "published" ? "status" : "status status-muted"}>{row.status === "published" ? "Visible" : "Hidden"}</span><span className="category-pill">{row.category || "Uncategorised"}</span></div>
+              <div><span className={row.status === "published" ? "status" : "status status-muted"}>{row.status === "published" ? "Visible" : "Hidden"}</span><span className="category-pill">{videoCategory(row)}</span></div>
               <h3>{row.title}</h3>
               <p>{row.description || "No description added."}</p>
             </div>

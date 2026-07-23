@@ -304,6 +304,16 @@ function thumbnailFor(video: SacredVideo, fallback: ImageSourcePropType = temple
   return fallback;
 }
 
+const VIDEO_LIBRARY_CATEGORIES = ["Normal Sessions", "Guided Meditation"] as const;
+
+function videoLibraryCategory(video: SacredVideo) {
+  if (video.category === "Normal Sessions" || video.category === "Guided Meditation") {
+    return video.category;
+  }
+  const searchable = `${video.category || ""} ${video.title || ""} ${video.description || ""}`.toLocaleLowerCase();
+  return searchable.includes("meditation") ? "Guided Meditation" : "Normal Sessions";
+}
+
 function PageShell({ children, compactTop = false }: { children: ReactNode; compactTop?: boolean }) {
   return (
     <SafeAreaView edges={["top"]} style={premium.safeArea}>
@@ -1185,17 +1195,12 @@ export function VideosListScreen({ navigation }: any) {
   const compactLayout = width < 380 || fontScale > 1.15;
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState("All Videos");
+  const [selectedCategory, setSelectedCategory] = useState<(typeof VIDEO_LIBRARY_CATEGORIES)[number]>("Normal Sessions");
   const [sortMode, setSortMode] = useState<"latest" | "library">("latest");
-  const categories = useMemo(() => [
-    "All Videos",
-    ...["Meditation", "Healing", "Manifestation", "Relationships", "Spiritual Wisdom", "Cosmic Teachings"]
-      .filter((category) => videos.some((video) => video.category === category))
-  ], [videos]);
   const filteredVideos = useMemo(
     () => videos.filter((video) => {
-      const categoryMatches = selectedCategory === "All Videos" || video.category === selectedCategory;
-      return categoryMatches && matchesSearch([video.title, video.description, video.category], query);
+      const categoryMatches = videoLibraryCategory(video) === selectedCategory;
+      return categoryMatches && matchesSearch([video.title, video.description], query);
     }).sort((left, right) => {
       if (sortMode === "library") return left.display_order - right.display_order;
       const leftTime = left.created_at ? Date.parse(left.created_at) : 0;
@@ -1206,10 +1211,6 @@ export function VideosListScreen({ navigation }: any) {
   );
   const featured = filteredVideos[0];
   const remainingVideos = filteredVideos.slice(1);
-
-  useEffect(() => {
-    if (!categories.includes(selectedCategory)) setSelectedCategory("All Videos");
-  }, [categories, selectedCategory]);
 
   return (
     <PageShell compactTop>
@@ -1266,7 +1267,7 @@ export function VideosListScreen({ navigation }: any) {
 
       {videos.length ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={premium.chipRow}>
-          {categories.map((chip) => (
+          {VIDEO_LIBRARY_CATEGORIES.map((chip) => (
             <Pressable key={chip} accessibilityRole="button" accessibilityState={{ selected: selectedCategory === chip }} onPress={() => setSelectedCategory(chip)}>
               <Text numberOfLines={1} maxFontSizeMultiplier={1.12} style={[premium.chip, selectedCategory === chip && premium.chipActive]}>{chip}</Text>
             </Pressable>
@@ -1280,17 +1281,12 @@ export function VideosListScreen({ navigation }: any) {
       {!loading && !error ? (
         <>
           {!videos.length ? <DataStateCard title="No videos yet" body="Published videos will appear here." /> : null}
-          {videos.length && !filteredVideos.length ? <DataStateCard title="No matching videos" body="Try a different search or category." /> : null}
+          {videos.length && !filteredVideos.length ? <DataStateCard title={`No ${selectedCategory.toLocaleLowerCase()} found`} body="Try a different search or select the other video type." /> : null}
 
           {featured ? (
             <>
               <SectionHead
-                title="Featured Videos"
-                action="View All"
-                onAction={() => {
-                  setSelectedCategory("All Videos");
-                  setQuery("");
-                }}
+                title={`Featured ${selectedCategory}`}
               />
               <Pressable onPress={() => openUrl(featured.youtube_url)}>
                 <PremiumCard style={[premium.videoFeaturedCard, compactLayout && premium.videoFeaturedCardCompact]}>
@@ -1302,7 +1298,7 @@ export function VideosListScreen({ navigation }: any) {
                     {featured.description ? <Text numberOfLines={3} maxFontSizeMultiplier={1.1} style={premium.videoFeaturedDesc}>{featured.description}</Text> : null}
                     <View style={premium.videoMetaLine}>
                       <Text style={premium.videoMetaText}>YouTube video</Text>
-                      <Text style={premium.videoCategory}>{featured.category || "Uncategorized"}</Text>
+                      <Text style={premium.videoCategory}>{videoLibraryCategory(featured)}</Text>
                     </View>
                   </View>
                 </PremiumCard>
@@ -1313,7 +1309,7 @@ export function VideosListScreen({ navigation }: any) {
           {remainingVideos.length ? (
             <>
               <View style={premium.videoListHeader}>
-                <Text style={premium.sectionTitle}>All Videos</Text>
+                <Text style={premium.sectionTitle}>{selectedCategory}</Text>
                 <View style={premium.videoListActions}>
                   <Pressable
                     accessibilityLabel={`Sort videos by ${sortMode === "latest" ? "library order" : "latest first"}`}
@@ -1326,7 +1322,7 @@ export function VideosListScreen({ navigation }: any) {
                   <Pressable
                     accessibilityLabel="Clear video filters"
                     onPress={() => {
-                      setSelectedCategory("All Videos");
+                      setSelectedCategory("Normal Sessions");
                       setQuery("");
                     }}
                     style={premium.videoFilterButton}
@@ -1343,7 +1339,7 @@ export function VideosListScreen({ navigation }: any) {
                   </View>
                   <View style={premium.videoRowCopy}>
                     <Text numberOfLines={2} maxFontSizeMultiplier={1.1} style={premium.videoRowTitle}>{video.title}</Text>
-                    <View style={premium.videoRowMeta}><Text style={premium.videoRowMetaText}>YouTube</Text><Text style={premium.videoPill}>{video.category || "Uncategorized"}</Text></View>
+                    <View style={premium.videoRowMeta}><Text style={premium.videoRowMetaText}>YouTube</Text><Text style={premium.videoPill}>{videoLibraryCategory(video)}</Text></View>
                   </View>
                   <ChevronRight color={colors.gold} size={18} />
                 </Pressable>
@@ -1637,7 +1633,7 @@ function WhatsAppCommunityCard({ onJoin }: { onJoin: () => void }) {
         <View style={premium.whatsappIcon}><MessageCircle color="#FFFFFF" size={24} /></View>
         <View style={premium.whatsappCopy}>
           <Text style={premium.whatsappTitle}>WhatsApp Community</Text>
-          <Text style={premium.whatsappText}>Join updates for Sunday sessions and Sacred Circle announcements.</Text>
+          <Text style={premium.whatsappText}>Join us to receive the session link and stay updated with upcoming events.</Text>
         </View>
         <ChevronRight color={colors.goldSoft} size={20} />
       </LinearGradient>

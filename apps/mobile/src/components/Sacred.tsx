@@ -511,7 +511,7 @@ export function CommunityCard({ onJoin }: { onJoin?: () => void }) {
     <View style={[styles.communityCard, compact && styles.communityCardCompact]}>
       <View>
         <Text style={[styles.communityTitle, compact && styles.communityTitleCompact]}>{compact ? "Join Our WhatsApp\nCommunity" : "Join Our Community"}</Text>
-        <Text style={[styles.communityText, compact && styles.communityTextCompact]}>{compact ? "Connect with fellow seekers on the path of inner awakening." : "Connect with fellow seekers\nin our WhatsApp group."}</Text>
+        <Text style={[styles.communityText, compact && styles.communityTextCompact]}>Join us to receive the session link and stay updated with upcoming events.</Text>
         <Pressable onPress={onJoin} style={[styles.communityButton, compact && styles.communityButtonCompact]}><Text style={styles.communityButtonText}>Join Now →</Text></Pressable>
       </View>
       {!compact ? <IconCircle size={74} pale><MessageCircle color={colors.goldSoft} size={42} /></IconCircle> : null}

@@ -154,7 +154,7 @@ export const moduleConfigs: Record<string, ModuleConfig> = {
       { key: "description", label: "Description", type: "textarea" },
       { key: "youtube_url", label: "YouTube video link", type: "text", helper: "Paste the original YouTube URL. The thumbnail is filled automatically from YouTube." },
       { key: "thumbnail_url", label: "Original thumbnail URL", type: "text", helper: "Usually auto-filled. Keep this as an i.ytimg.com URL unless there is a special reason." },
-      { key: "category", label: "Category", type: "text" },
+      { key: "category", label: "Category", type: "select", options: ["Normal Sessions", "Guided Meditation"] },
       { key: "display_order", label: "Display order", type: "number" },
       { key: "source_url", label: "Original website/source URL", type: "text" },
       { key: "migration_status", label: "Migration status", type: "select", options: ["manual_review", "ready", "imported", "needs_update", "archived"] },
