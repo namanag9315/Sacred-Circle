@@ -17,6 +17,7 @@ import {
   Alert,
   Image,
   ImageBackground,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -303,16 +304,24 @@ function PageShell({ children, compactTop = false }: { children: ReactNode; comp
       <View pointerEvents="none" style={premium.pageMandala}>
         <Image source={omMandala} resizeMode="contain" style={premium.pageMandalaImage} />
       </View>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        style={premium.pageScroll}
-        contentContainerStyle={premium.pageScrollContent}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={0}
+        style={premium.keyboardAvoider}
       >
-        <View style={[premium.shell, compactTop && premium.shellCompact]}>
-          {children}
-        </View>
-      </ScrollView>
+        <ScrollView
+          automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          style={premium.pageScroll}
+          contentContainerStyle={premium.pageScrollContent}
+        >
+          <View style={[premium.shell, compactTop && premium.shellCompact]}>
+            {children}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -1494,6 +1503,7 @@ function WhatsAppCommunityCard({ onJoin }: { onJoin: () => void }) {
 
 const premium = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#FFF9F0" },
+  keyboardAvoider: { flex: 1 },
   pageScroll: { flex: 1, backgroundColor: "#FFF9F0" },
   pageMandala: { position: "absolute", width: 320, height: 320, top: 38, right: -124, opacity: 0.075 },
   pageMandalaImage: { width: "100%", height: "100%" },

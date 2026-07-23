@@ -5,6 +5,7 @@ import {
   Easing,
   Image,
   ImageBackground,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -87,7 +88,23 @@ export function Screen({
       <SubtleMandalaWatermark animated={Platform.OS !== "web"} size={240} top={-60} right={-90} opacity={0.16} />
       <SubtleMandalaWatermark size={250} bottom={-80} left={-100} opacity={0.10} />
       {bottomImage ? <ImageBackground source={bottomImage} resizeMode="cover" style={styles.bottomLake} imageStyle={styles.bottomLakeImage} /> : null}
-      {scroll ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>{content}</ScrollView> : content}
+      {scroll ? (
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={0}
+          style={styles.keyboardAvoider}
+        >
+          <ScrollView
+            automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+            keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scroll}
+          >
+            {content}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      ) : content}
     </View>
   );
 }
@@ -539,6 +556,7 @@ export const fieldIcons = {
 };
 
 const styles = StyleSheet.create({
+  keyboardAvoider: { flex: 1 },
   screen: { flex: 1, overflow: "hidden", backgroundColor: colors.background },
   scroll: { flexGrow: 1 },
   content: { width: "100%", maxWidth: 1032, alignSelf: "center", paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: 124 },
